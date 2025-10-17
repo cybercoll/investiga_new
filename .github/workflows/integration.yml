@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  checks: read
+  pull-requests: write
+  contents: read
+  issues: write
+
 jobs:
   integration:
     runs-on: ubuntu-latest
@@ -19,3 +25,72 @@ jobs:
           node -v
           npm -v
           echo "Integration check run"
+      - name: Fail intentionally to test badge
+        run: |
+          echo "Intentional failure to test red badge mapping"
+          exit 1
+
+  build_success:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node version
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Simulate build success
+        run: |
+          echo "Simulating successful job"
+          node -v
+
+  comment:
+    needs: [integration, build_success]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compose sticky PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pr = context.payload.pull_request?.number;
+            const sha = context.payload.pull_request?.head?.sha;
+            if (!pr || !sha) {
+              core.setFailed('No PR context or SHA');
+              return;
+            }
+            const checks = await github.request('GET /repos/{owner}/{repo}/commits/{ref}/check-runs', {
+              owner, repo, ref: sha, headers: { accept: 'application/vnd.github+json' }
+            });
+            const runs = Array.isArray(checks.data.check_runs) ? checks.data.check_runs : [];
+            const lines = runs.map(r => `- ${r.name}: ${r.status}${r.conclusion ? ` (${r.conclusion})` : ''}`).join('\n');
+            // precedence: failure > timed_out > cancelled > action_required > neutral > skipped > success
+            const order = ['failure','timed_out','cancelled','action_required','neutral','skipped','success'];
+            const worst = runs.reduce((acc, r) => {
+              const c = (r.conclusion || 'neutral').toLowerCase();
+              const a = order.indexOf(acc) >= 0 ? order.indexOf(acc) : order.length;
+              const b = order.indexOf(c) >= 0 ? order.indexOf(c) : order.length;
+              return b < a ? c : acc;
+            }, 'success');
+            const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', neutral: 'blue', timed_out: 'orange', action_required: 'yellow', skipped: 'lightgrey' };
+            const color = colorMap[worst] || 'lightgrey';
+            const badge = `![integration](https://img.shields.io/badge/integration-${worst}-${color})`;
+            const body = [
+              '<!-- sticky:investiga-integration -->',
+              badge,
+              '',
+              'Check-runs:',
+              lines,
+              '',
+              `Commit: ${sha}`,
+              `[Checks page](https://github.com/${owner}/${repo}/commit/${sha}/checks)`
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: pr, per_page: 100 });
+            const existing = comments.find(c => (c.body || '').includes('<!-- sticky:investiga-integration -->'));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: pr, body });
+            }
