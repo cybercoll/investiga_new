@@ -105,3 +105,8 @@ CREATE TABLE public.investigations (
 - Supabase (opcional): se `NEXT_PUBLIC_SUPABASE_URL` estiver definido, é necessário pelo menos um entre `NEXT_PUBLIC_SUPABASE_ANON_KEY` ou `SUPABASE_SERVICE_ROLE_KEY`.
 - Direct Data (opcional): `DIRECT_DATA_API_KEY`, `DIRECT_DATA_BASE_URL`, `DIRECT_DATA_AUTH_HEADER`, `DIRECT_DATA_AUTH_SCHEME`.
 - Saída do script indica faltas e fornece dicas. Se faltas obrigatórias existirem, sai com código 1.
+
+
+## PR Test
+
+Este PR valida preview, badge dinâmico e relatório de bundle.
