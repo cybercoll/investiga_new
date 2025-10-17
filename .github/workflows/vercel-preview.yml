@@ -170,7 +170,7 @@ jobs:
             const integEndpoint = url ? `https://img.shields.io/endpoint?url=${encodeURIComponent(url + '/api/badge/integration?sha=' + sha)}` : '';
             let integrationBadge = integEndpoint ? `![Integration](${integEndpoint})` : '';
             if (!integrationBadge) {
-              const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', skipped: 'lightgrey' };
+              const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', skipped: 'lightgrey', neutral: 'blue', timed_out: 'orange', action_required: 'yellow', stale: 'yellow' };
               const integColor = colorMap[integration.conclusion] || 'blue';
               integrationBadge = `![Integration](https://img.shields.io/badge/integration-${encodeURIComponent(integration.conclusion || 'unknown')}-${integColor})`;
             }

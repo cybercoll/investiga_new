@@ -204,8 +204,8 @@ export default function Home() {
                 <div key={provider} className="border rounded p-3">
                   <h2 className="text-lg font-semibold mb-2">{provider.toUpperCase()}</h2>
                   <ul className="list-disc pl-5 space-y-1">
-                    {results[provider].map((item) => (
-                      <li key={item.url}>
+                    {results[provider].map((item, idx) => (
+                      <li key={item.url || `${provider}-${idx}`}>
                         <a
                           className="text-blue-700 hover:underline break-words"
                           href={item.url}
@@ -275,7 +275,7 @@ export default function Home() {
                 </div>
                 <ul className="space-y-2">
                   {items.map((f, idx) => (
-                    <li key={idx} className="border rounded p-3">
+                    <li key={f.path} className="border rounded p-3">
                       <a
                         className="font-medium text-blue-700 hover:underline break-words"
                         href={f.url}

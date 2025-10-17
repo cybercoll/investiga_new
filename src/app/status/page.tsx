@@ -9,6 +9,28 @@ export default async function StatusPage() {
   const shieldUrl = `https://img.shields.io/endpoint?url=${encodeURIComponent(endpoint)}`;
   const checksUrl = owner && repo && sha ? `https://github.com/${owner}/${repo}/commit/${sha}/checks` : "";
   const prUrl = owner && repo ? `https://github.com/${owner}/${repo}/pulls` : "";
+  const token = process.env.GITHUB_TOKEN || "";
+  let checkRuns: { id: number; name: string; status: string; conclusion: string | null; started_at?: string; completed_at?: string; details_url?: string }[] = [];
+  if (owner && repo && sha) {
+    try {
+      const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/commits/${sha}/check-runs`, {
+        headers: { Accept: "application/vnd.github+json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (r.ok) {
+        const data = await r.json();
+        checkRuns = (data?.check_runs || []).slice(0, 20);
+      }
+    } catch {}
+  }
+  const fmtDuration = (s?: string, e?: string) => {
+    if (!s || !e) return "-";
+    const ms = new Date(e).getTime() - new Date(s).getTime();
+    if (!isFinite(ms) || ms <= 0) return "-";
+    const sec = Math.round(ms / 1000);
+    const m = Math.floor(sec / 60);
+    const ss = sec % 60;
+    return m ? `${m}m ${ss}s` : `${ss}s`;
+  };
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -40,6 +62,28 @@ export default async function StatusPage() {
             )}
           </ul>
         </section>
+        {checkRuns.length > 0 && (
+          <section className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-3">Check-runs</h2>
+            <ul className="text-gray-700 space-y-2">
+              {checkRuns.map((cr) => (
+                <li key={cr.id} className="flex items-start justify-between border rounded p-3">
+                  <div className="space-y-1">
+                    <div className="font-medium">{cr.name}</div>
+                    <div className="text-sm text-gray-600">status: {cr.status}{cr.conclusion ? ` · conclusion: ${cr.conclusion}` : ""} · duração: {fmtDuration(cr.started_at, cr.completed_at)}</div>
+                  </div>
+                  <div>
+                    {cr.details_url ? (
+                      <a href={cr.details_url} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline text-sm">ver detalhes</a>
+                    ) : (
+                      checksUrl ? <a href={checksUrl} target="_blank" rel="noreferrer" className="text-blue-700 hover:underline text-sm">ver no GitHub</a> : null
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-3">Deploy (Vercel)</h2>
