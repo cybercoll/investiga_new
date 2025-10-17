@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 const fs = require('fs');
+const path = require('path');
 
 function readToken() {
-  const path = __dirname + '/../.env.local';
-  if (!fs.existsSync(path)) throw new Error('Arquivo .env.local não encontrado');
-  const content = fs.readFileSync(path, 'utf8');
+  const p = path.join(__dirname, '..', '.env.local');
+  if (!fs.existsSync(p)) throw new Error('Arquivo .env.local não encontrado');
+  const content = fs.readFileSync(p, 'utf8');
   const m = content.match(/^GITHUB_TOKEN=(.*)$/m);
   if (!m || !m[1]) throw new Error('GITHUB_TOKEN ausente em .env.local');
   return m[1].trim();
@@ -50,18 +51,28 @@ function msBetween(a, b) {
       return `- ${r.name}: ${r.status}${r.conclusion ? ` (${r.conclusion})` : ''}${durStr}${link}`;
     }).join('\n');
 
-    const order = ['failure','timed_out','cancelled','action_required','neutral','skipped','success'];
+    const order = ['failure','timed_out','cancelled','stale','action_required','neutral','skipped','success'];
     const worst = runs.reduce((acc, r) => {
       const c = (r.conclusion || 'neutral').toLowerCase();
       const a = order.indexOf(acc) >= 0 ? order.indexOf(acc) : order.length;
       const b = order.indexOf(c) >= 0 ? order.indexOf(c) : order.length;
       return b < a ? c : acc;
     }, 'success');
-    const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', neutral: 'blue', timed_out: 'orange', action_required: 'yellow', skipped: 'lightgrey' };
+    const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', neutral: 'blue', timed_out: 'orange', action_required: 'yellow', skipped: 'lightgrey', stale: 'yellow' };
     const color = colorMap[worst] || 'lightgrey';
     const staticBadge = `![integration](https://img.shields.io/badge/integration-${worst}-${color})`;
 
     const checksPage = `https://github.com/${owner}/${repo}/commit/${sha}/checks`;
+
+    let bundleDiffExcerpt = '';
+    try {
+      const diffTxtPath = path.join(__dirname, '..', 'bundle-report-diff.txt');
+      const diffTxt = fs.readFileSync(diffTxtPath, 'utf8');
+      const firstLines = diffTxt.split('\n').slice(0, 20).join('\n');
+      bundleDiffExcerpt = `\nBundle report diff (excerpt):\n${firstLines}\n`;
+    } catch (e) {
+      bundleDiffExcerpt = '\nBundle report diff not available locally.';
+    }
 
     const body = [
       '<!-- sticky:investiga-integration -->',
@@ -71,7 +82,8 @@ function msBetween(a, b) {
       lines,
       '',
       `Commit: ${sha}`,
-      `[Checks page](${checksPage})`
+      `[Checks page](${checksPage})`,
+      bundleDiffExcerpt,
     ].join('\n');
 
     const comments = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`, { headers });
