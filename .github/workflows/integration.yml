@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  checks: read
+  checks: write
   pull-requests: write
   contents: read
   issues: write
@@ -16,26 +16,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Node version
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
       - name: Quick check
         run: |
           node -v
           npm -v
-          echo "Integration check run"
-      - name: Fail intentionally to test badge
-        run: |
-          echo "Intentional failure to test red badge mapping"
-          exit 1
+          echo "Integration job succeeded"
 
   build_success:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Node version
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
@@ -44,29 +43,107 @@ jobs:
           echo "Simulating successful job"
           node -v
 
-  comment:
+  custom_checks:
     needs: [integration, build_success]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create custom check-runs (timed_out, cancelled, action_required, neutral)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = (context.payload.pull_request && context.payload.pull_request.head && context.payload.pull_request.head.sha) || context.sha;
+            const now = new Date();
+            const started = new Date(now.getTime() - 30 * 1000).toISOString();
+            const completed = now.toISOString();
+
+            const checksToCreate = [
+              { name: 'integration-timed_out', conclusion: 'timed_out' },
+              { name: 'integration-cancelled', conclusion: 'cancelled' },
+              { name: 'integration-action_required', conclusion: 'action_required' },
+              { name: 'integration-neutral', conclusion: 'neutral' },
+            ];
+
+            for (const chk of checksToCreate) {
+              try {
+                // Try find existing check-run by name for this ref
+                const { data } = await github.rest.checks.listForRef({ owner, repo, ref: sha, per_page: 100 });
+                const existing = (data.check_runs || []).find(r => r.name === chk.name);
+                if (existing) {
+                  await github.rest.checks.update({ owner, repo, check_run_id: existing.id, name: chk.name, status: 'completed', conclusion: chk.conclusion, completed_at: completed, details_url: `https://github.com/${owner}/${repo}/commit/${sha}/checks` });
+                } else {
+                  await github.rest.checks.create({ owner, repo, name: chk.name, head_sha: sha, status: 'completed', started_at: started, completed_at: completed, conclusion: chk.conclusion, details_url: `https://github.com/${owner}/${repo}/commit/${sha}/checks` });
+                }
+              } catch (e) {
+                core.warning(`Failed to create/update check-run ${chk.name}: ${e.message}`);
+              }
+            }
+
+  bundle_report:
+    needs: [integration]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
+        id: build_app
+        run: |
+          START=$(date +%s)
+          npm run build
+          END=$(date +%s)
+          MS=$(( (END-START)*1000 ))
+          echo "build_ms=$MS" >> $GITHUB_OUTPUT
+      - name: Generate bundle report
+        run: node scripts/bundle-report.js > bundle-report.txt || echo "Bundle report generation failed"
+      - name: Upload bundle report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-report-integration
+          path: bundle-report.txt
+
+  comment:
+    needs: [integration, build_success, custom_checks, bundle_report]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Compose sticky PR comment
+      - name: Compose sticky PR comment with durations and links
         uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const pr = context.payload.pull_request?.number;
-            const sha = context.payload.pull_request?.head?.sha;
+            const sha = (context.payload.pull_request && context.payload.pull_request.head && context.payload.pull_request.head.sha) || context.sha;
+            const runId = process.env.GITHUB_RUN_ID;
             if (!pr || !sha) {
               core.setFailed('No PR context or SHA');
               return;
             }
-            const checks = await github.request('GET /repos/{owner}/{repo}/commits/{ref}/check-runs', {
-              owner, repo, ref: sha, headers: { accept: 'application/vnd.github+json' }
-            });
-            const runs = Array.isArray(checks.data.check_runs) ? checks.data.check_runs : [];
-            const lines = runs.map(r => `- ${r.name}: ${r.status}${r.conclusion ? ` (${r.conclusion})` : ''}`).join('\n');
-            // precedence: failure > timed_out > cancelled > action_required > neutral > skipped > success
+            const { data: checks } = await github.rest.checks.listForRef({ owner, repo, ref: sha, per_page: 100 });
+            const runs = Array.isArray(checks.check_runs) ? checks.check_runs : [];
+
+            function msBetween(a, b) {
+              if (!a || !b) return null;
+              const ms = new Date(b).getTime() - new Date(a).getTime();
+              return ms >= 0 ? ms : null;
+            }
+
+            const lines = runs.map(r => {
+              const dur = msBetween(r.started_at, r.completed_at);
+              const durStr = dur != null ? ` — ${dur}ms` : '';
+              const link = r.html_url ? ` ([details](${r.html_url}))` : '';
+              return `- ${r.name}: ${r.status}${r.conclusion ? ` (${r.conclusion})` : ''}${durStr}${link}`;
+            }).join('\n');
+
             const order = ['failure','timed_out','cancelled','action_required','neutral','skipped','success'];
             const worst = runs.reduce((acc, r) => {
               const c = (r.conclusion || 'neutral').toLowerCase();
@@ -76,17 +153,22 @@ jobs:
             }, 'success');
             const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', neutral: 'blue', timed_out: 'orange', action_required: 'yellow', skipped: 'lightgrey' };
             const color = colorMap[worst] || 'lightgrey';
-            const badge = `![integration](https://img.shields.io/badge/integration-${worst}-${color})`;
+            const staticBadge = `![integration](https://img.shields.io/badge/integration-${worst}-${color})`;
+
+            const checksPage = `https://github.com/${owner}/${repo}/commit/${sha}/checks`;
+            const runLink = `https://github.com/${owner}/${repo}/actions/runs/${runId}`;
+
             const body = [
               '<!-- sticky:investiga-integration -->',
-              badge,
+              staticBadge,
               '',
-              'Check-runs:',
+              'Check-runs detalhados:',
               lines,
               '',
               `Commit: ${sha}`,
-              `[Checks page](https://github.com/${owner}/${repo}/commit/${sha}/checks)`
+              `[Checks page](${checksPage}) | [Run artifacts](${runLink})`,
             ].join('\n');
+
             const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number: pr, per_page: 100 });
             const existing = comments.find(c => (c.body || '').includes('<!-- sticky:investiga-integration -->'));
             if (existing) {
