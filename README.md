@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Investiga
 
-## Getting Started
+Ferramenta web (Next.js 15 + Tailwind) para realizar buscas em provedores gratuitos (Wikipedia, DuckDuckGo, GitHub), e salvar resultados diretamente em um repositório GitHub. Pronta para deploy no Vercel.
 
-First, run the development server:
+## Requisitos
+- Node 18+
+- Repositório no GitHub (owner/repo)
+- Vercel para deploy (opcional)
 
-```bash
+## Desenvolvimento Local
+1. Crie o arquivo `.env.local` e defina:
+```
+GITHUB_TOKEN=...
+GITHUB_OWNER=...
+GITHUB_REPO=...
+GITHUB_BRANCH=main
+
+# Direct Data (opcional, API paga)
+DIRECT_DATA_API_KEY=
+DIRECT_DATA_BASE_URL=
+DIRECT_DATA_AUTH_HEADER=X-API-Key
+DIRECT_DATA_AUTH_SCHEME=
+```
+2. Instale dependências:
+```
+npm i
+```
+3. Rode o servidor dev:
+```
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## GitHub (armazenamento)
+A API cria um arquivo JSON em `investigations/dd/mm/yyyy/slug-timestamp.json` no repositório configurado (formato de data em português). Defina:
+- `GITHUB_TOKEN` (token pessoal com escopo `repo`)
+- `GITHUB_OWNER` e `GITHUB_REPO`
+- `GITHUB_BRANCH` (opcional, default `main`)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase (opcional)
+Para habilitar salvar local de investigações no Supabase e listar histórico:
+1. Defina no `.env.local`:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<sua-instancia>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key> # recomendado para backend
+```
+2. Crie a tabela:
+```
+CREATE TABLE public.investigations (
+  id bigserial primary key,
+  created_at timestamptz default now(),
+  query text not null,
+  results jsonb not null
+);
+```
+3. Fluxos disponíveis:
+- `POST /api/save` salva `{ query, results }` e retorna `{ id, created_at }`.
+- `GET /api/supabase/history` lista últimos 50 itens ordenados por `created_at` desc.
+- Na UI, o botão "Salvar no Supabase" e "Histórico (Supabase)" aparecem somente quando `NEXT_PUBLIC_SUPABASE_URL` está definido.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Learn More
+## Provedores
+- Wikipedia: API pública de busca.
+- DuckDuckGo: endpoint de instant answers (limitado).
+- GitHub: busca de repositórios.
+- Direct Data (API paga):
+  - `DIRECT_DATA_API_KEY`: chave da API fornecida por você.
+  - `DIRECT_DATA_BASE_URL`: base da API, sem barra final. Ex.: `https://api.seudominio.com`.
+  - `DIRECT_DATA_AUTH_HEADER`: cabeçalho de autenticação. Ex.: `X-API-Key` (default) ou `Authorization`.
+  - `DIRECT_DATA_AUTH_SCHEME`: esquema quando usar `Authorization`. Ex.: `Bearer` (ou deixe vazio).
+  - Observação: a rota genérica chama `${DIRECT_DATA_BASE_URL}/search?q=<query>&limit=5`. Ajuste conforme sua documentação.
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy no Vercel
+1. Importar o repositório no Vercel.
+2. Definir variáveis de ambiente no projeto Vercel (Production e Preview):
+   - `GITHUB_TOKEN`
+   - `GITHUB_OWNER`
+   - `GITHUB_REPO`
+   - `GITHUB_BRANCH` (opcional)
+   - `DIRECT_DATA_*` se usar o provedor pago
+3. Deploy. As rotas `/api/*` funcionam server-side e a página inicial oferece UI de busca e envio ao GitHub.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Segurança
+- `.env.local` está git-ignored; não commite segredos.
+- GitHub token com escopo mínimo necessário (`repo`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Testes manuais
+- Buscar termos como `Brasil`, `Next.js`.
+- Enviar ao GitHub (verificar arquivo criado no repositório).
 
-## Deploy on Vercel
+## Roadmap
+- Paginação e filtros.
+- Histórico de buscas renderizado a partir dos arquivos no GitHub.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Checklist de Deploy
+- Verificar variáveis: `npm run check:env` (retorna código de saída 0 quando ok).
+- Build de produção: `npm run build`.
+- Start (self-host): `npm run start`.
+- Configurar variáveis no provedor (ex.: Vercel) para Production e Preview.
+- Validar a UI e APIs em preview antes do corte para produção.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Script de verificação de ambiente
+- Comando: `npm run check:env`.
+- GitHub (obrigatório): `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` (`GITHUB_BRANCH` opcional, default `main`).
+- Supabase (opcional): se `NEXT_PUBLIC_SUPABASE_URL` estiver definido, é necessário pelo menos um entre `NEXT_PUBLIC_SUPABASE_ANON_KEY` ou `SUPABASE_SERVICE_ROLE_KEY`.
+- Direct Data (opcional): `DIRECT_DATA_API_KEY`, `DIRECT_DATA_BASE_URL`, `DIRECT_DATA_AUTH_HEADER`, `DIRECT_DATA_AUTH_SCHEME`.
+- Saída do script indica faltas e fornece dicas. Se faltas obrigatórias existirem, sai com código 1.

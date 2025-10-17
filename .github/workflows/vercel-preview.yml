@@ -1,0 +1,243 @@
+name: Vercel Preview Deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        id: build_app
+        run: |
+          START=$(date +%s)
+          npm run build
+          END=$(date +%s)
+          MS=$(( (END-START)*1000 ))
+          echo "build_ms=$MS" >> $GITHUB_OUTPUT
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Pull Vercel env (preview)
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel (prebuilt)
+        id: vercel-deploy
+        run: |
+          START=$(date +%s)
+          OUT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          END=$(date +%s)
+          # Extract deployment URL (.vercel.app) and Vercel dashboard inspect URL
+          URL=$(echo "$OUT" | grep -oE 'https?://[a-zA-Z0-9.-]+\.vercel\.app' | tail -n 1)
+          INSPECT=$(echo "$OUT" | grep -oE 'https?://vercel\.com/[^ ]+' | tail -n 1)
+          MS=$(( (END-START)*1000 ))
+          echo "Preview URL: $URL"
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+          echo "inspect_url=$INSPECT" >> $GITHUB_OUTPUT
+          echo "deploy_ms=$MS" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Collect preview metrics
+        id: collect_metrics
+        run: |
+          # Bundle size (.next) in MB
+          SIZE_BYTES=$(du -sb .next | cut -f1)
+          SIZE_MB=$(awk "BEGIN { printf \"%.2f\", $SIZE_BYTES/1024/1024 }")
+          echo "bundle_size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
+          echo "bundle_size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
+          
+          # Measure response times for preview URL
+          URL="${{ steps.vercel-deploy.outputs.preview_url }}"
+          ROOT_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$URL/")
+          ROOT_MS=$(awk "BEGIN { printf \"%.0f\", $ROOT_TIME*1000 }")
+          ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/")
+          HISTORY_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$URL/api/history")
+          HISTORY_MS=$(awk "BEGIN { printf \"%.0f\", $HISTORY_TIME*1000 }")
+          HISTORY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/history")
+
+          # Measure POST /api/search (real providers + directdata)
+          SEARCH_PAYLOAD='{"query":"Brasil","providers":["wikipedia","duckduckgo","github","directdata"]}'
+          SEARCH_TIME=$(curl -s -o /dev/null -w "%{time_total}" -X POST -H "Content-Type: application/json" -d "$SEARCH_PAYLOAD" "$URL/api/search")
+          SEARCH_MS=$(awk "BEGIN { printf \"%.0f\", $SEARCH_TIME*1000 }")
+          SEARCH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$SEARCH_PAYLOAD" "$URL/api/search")
+
+          echo "resp_root_ms=$ROOT_MS" >> $GITHUB_OUTPUT
+          echo "resp_root_status=$ROOT_STATUS" >> $GITHUB_OUTPUT
+          echo "resp_history_ms=$HISTORY_MS" >> $GITHUB_OUTPUT
+          echo "resp_history_status=$HISTORY_STATUS" >> $GITHUB_OUTPUT
+          echo "resp_search_ms=$SEARCH_MS" >> $GITHUB_OUTPUT
+          echo "resp_search_status=$SEARCH_STATUS" >> $GITHUB_OUTPUT
+
+          # Generate per-route bundle report from build output
+          node scripts/bundle-report.js > bundle-report.txt || echo "Bundle report generation failed"
+
+      - name: Upload bundle report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-report
+          path: bundle-report.txt
+
+      - name: Comment PR with preview URL (sticky)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = process.env.preview_url;
+            const inspect = process.env.inspect_url;
+            const number = context.payload.pull_request.number;
+            const marker = '<!-- vercel-preview-url -->';
+            const sha = (context.payload.pull_request && context.payload.pull_request.head && context.payload.pull_request.head.sha) || context.sha;
+            const branch = (context.payload.pull_request && context.payload.pull_request.head && context.payload.pull_request.head.ref) || (context.ref || '').replace('refs/heads/', '');
+            const buildMs = Number(process.env.build_ms || 0);
+            const deployMs = Number(process.env.deploy_ms || 0);
+            const buildSec = (buildMs / 1000).toFixed(2);
+            const deploySec = (deployMs / 1000).toFixed(2);
+
+            const bundleMb = (Number(process.env.bundle_size_mb || 0)).toFixed(2);
+            const rootMs = Number(process.env.resp_root_ms || 0);
+            const rootStatus = process.env.resp_root_status || '';
+            const histMs = Number(process.env.resp_history_ms || 0);
+            const histStatus = process.env.resp_history_status || '';
+            const searchMs = Number(process.env.resp_search_ms || 0);
+            const searchStatus = process.env.resp_search_status || '';
+
+            // Find latest run of check-env.yml for this PR head SHA
+            let integration = { status: 'unknown', conclusion: 'unknown', runId: null };
+            let envArtifactsMd = 'Artifacts (Check Env): none';
+            try {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'check-env.yml',
+                event: 'pull_request',
+              });
+              const match = runs.data.workflow_runs.find(r => r.head_sha === sha);
+              if (match) {
+                const jobs = await github.rest.actions.listJobsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: match.id,
+                });
+                const job = jobs.data.jobs.find(j => j.name === 'integration');
+                if (job) {
+                  integration = { status: job.status, conclusion: job.conclusion || 'n/a', runId: match.id };
+                } else {
+                  integration = { status: match.status, conclusion: match.conclusion || 'n/a', runId: match.id };
+                }
+                const envArts = await github.rest.actions.listWorkflowRunArtifacts({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  run_id: match.id,
+                });
+                if (envArts?.data?.artifacts?.length) {
+                  const lines = envArts.data.artifacts.map(a => `- ${a.name} (${a.size_in_bytes} bytes)`);
+                  const link = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${match.id}`;
+                  envArtifactsMd = `View artifacts: ${link}\n${lines.join('\n')}`;
+                } else {
+                  const link = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${match.id}`;
+                  envArtifactsMd = `View artifacts: ${link}`;
+                }
+              }
+            } catch (e) { /* ignore */ }
+
+            // Build badges
+            const previewBadge = `![Preview](https://img.shields.io/github/actions/workflow/status/${context.repo.owner}/${context.repo.repo}/vercel-preview.yml?branch=${branch})`;
+            const checkEnvBadge = `![Check Env](https://img.shields.io/github/actions/workflow/status/${context.repo.owner}/${context.repo.repo}/check-env.yml?branch=${branch})`;
+            // Prefer dynamic endpoint badge served by our preview environment if available
+            const integEndpoint = url ? `https://img.shields.io/endpoint?url=${encodeURIComponent(url + '/api/badge/integration?sha=' + sha)}` : '';
+            let integrationBadge = integEndpoint ? `![Integration](${integEndpoint})` : '';
+            if (!integrationBadge) {
+              const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', skipped: 'lightgrey' };
+              const integColor = colorMap[integration.conclusion] || 'blue';
+              integrationBadge = `![Integration](https://img.shields.io/badge/integration-${encodeURIComponent(integration.conclusion || 'unknown')}-${integColor})`;
+            }
+
+            // Artifacts for this preview run
+            let artifactsMd = 'Artifacts (Preview): none';
+            try {
+              const runId = process.env.GITHUB_RUN_ID;
+              const arts = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: Number(runId),
+              });
+              const runLink = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+              if (arts?.data?.artifacts?.length) {
+                const lines = arts.data.artifacts.map(a => `- ${a.name} (${a.size_in_bytes} bytes)`);
+                artifactsMd = `View artifacts: ${runLink}\n${lines.join('\n')}`;
+              } else {
+                artifactsMd = `View artifacts: ${runLink}`;
+              }
+            } catch (e) { /* ignore */ }
+
+            const integrationLink = integration.runId ? `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${integration.runId}` : '';
+            const integrationLine = integration.runId ? `Integration: ${integration.status}/${integration.conclusion} ${integrationBadge} ([logs](${integrationLink}))` : `Integration: ${integration.status}/${integration.conclusion} ${integrationBadge}`;
+
+            const vercelLine = inspect ? `Vercel dashboard: ${inspect}` : '';
+
+            const fs = require('fs');
+            let bundleReport = '';
+            try { bundleReport = fs.readFileSync('bundle-report.txt', 'utf8'); } catch (e) { /* ignore */ }
+
+            const metrics = `**Bundle size**: \`${bundleMb} MB\`\n**Page /**: \`${rootMs} ms\` (HTTP ${rootStatus})\n**API /api/history**: \`${histMs} ms\` (HTTP ${histStatus})\n**POST /api/search**: \`${searchMs} ms\` (HTTP ${searchStatus})`;
+
+            const body = `${marker}\n### Preview\n**URL**: ${url}\nCommit: \`${sha}\`\nBranch: \`${branch}\`\n\n**Build time**: \`${buildSec}s\`  |  **Deploy time**: \`${deploySec}s\`\nStatus: ${previewBadge}\n${vercelLine}\n\n### Metrics\n${metrics}\n\n### Bundle Report\n${bundleReport ? bundleReport.split('\n').slice(0, 12).join('\n') + '\n' : 'See artifact: bundle-report'}\n\n### CI\nStatus: ${checkEnvBadge}\n${integrationLine}\n\n### Artifacts (Preview)\n${artifactsMd}\n\n### Artifacts (Check Env)\n${envArtifactsMd}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+              per_page: 100,
+            });
+            const existing = comments.find(c => typeof c.body === 'string' && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                body,
+              });
+            }
+          result-encoding: string
+        env:
+          preview_url: ${{ steps.vercel-deploy.outputs.preview_url }}
+          build_ms: ${{ steps.build_app.outputs.build_ms }}
+          deploy_ms: ${{ steps.vercel-deploy.outputs.deploy_ms }}
+          inspect_url: ${{ steps.vercel-deploy.outputs.inspect_url }}
+          bundle_size_mb: ${{ steps.collect_metrics.outputs.bundle_size_mb }}
+          resp_root_ms: ${{ steps.collect_metrics.outputs.resp_root_ms }}
+          resp_root_status: ${{ steps.collect_metrics.outputs.resp_root_status }}
+          resp_history_ms: ${{ steps.collect_metrics.outputs.resp_history_ms }}
+          resp_history_status: ${{ steps.collect_metrics.outputs.resp_history_status }}
+          resp_search_ms: ${{ steps.collect_metrics.outputs.resp_search_ms }}
+          resp_search_status: ${{ steps.collect_metrics.outputs.resp_search_status }}

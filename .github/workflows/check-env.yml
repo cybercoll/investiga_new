@@ -1,0 +1,208 @@
+name: Check Environment
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  check-env:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate env report
+        run: node scripts/check-env.js > env-report.txt
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ vars.GITHUB_OWNER }}
+          GITHUB_REPO: ${{ vars.GITHUB_REPO }}
+          GITHUB_BRANCH: ${{ vars.GITHUB_BRANCH }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DIRECT_DATA_API_KEY: ${{ secrets.DIRECT_DATA_API_KEY }}
+          DIRECT_DATA_BASE_URL: ${{ vars.DIRECT_DATA_BASE_URL }}
+          DIRECT_DATA_AUTH_HEADER: ${{ vars.DIRECT_DATA_AUTH_HEADER }}
+          DIRECT_DATA_AUTH_SCHEME: ${{ vars.DIRECT_DATA_AUTH_SCHEME }}
+
+      - name: Upload env report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-env-report
+          path: env-report.txt
+
+      - name: Run env check
+        run: npm run check:env
+        env:
+          # GitHub (obrigatório)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ vars.GITHUB_OWNER }}
+          GITHUB_REPO: ${{ vars.GITHUB_REPO }}
+          GITHUB_BRANCH: ${{ vars.GITHUB_BRANCH }}
+
+          # Supabase (opcional)
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+          # Direct Data (opcional)
+          DIRECT_DATA_API_KEY: ${{ secrets.DIRECT_DATA_API_KEY }}
+          DIRECT_DATA_BASE_URL: ${{ vars.DIRECT_DATA_BASE_URL }}
+          DIRECT_DATA_AUTH_HEADER: ${{ vars.DIRECT_DATA_AUTH_HEADER }}
+          DIRECT_DATA_AUTH_SCHEME: ${{ vars.DIRECT_DATA_AUTH_SCHEME }}
+
+      - name: Validate GitHub API access
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/git/trees/${GITHUB_BRANCH:-main}")
+          echo "HTTP Status: $STATUS"
+          if [ "$STATUS" -ne 200 ]; then
+            echo "GitHub API access validation failed" >&2
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ vars.GITHUB_OWNER }}
+          GITHUB_REPO: ${{ vars.GITHUB_REPO }}
+          GITHUB_BRANCH: ${{ vars.GITHUB_BRANCH }}
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: check-env
+    if: ${{ vars.GITHUB_OWNER && vars.GITHUB_REPO && secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+      checks: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Start app (background)
+        run: |
+          nohup npx next start -p 3000 > .next/next-start.log 2>&1 &
+          echo $! > .next/next-start.pid
+          echo "Waiting for server..."
+          for i in {1..60}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
+            if [ "$STATUS" -eq 200 ]; then
+              echo "Server ready"
+              break
+            fi
+            sleep 1
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ vars.GITHUB_OWNER }}
+          GITHUB_REPO: ${{ vars.GITHUB_REPO }}
+          GITHUB_BRANCH: ${{ vars.GITHUB_BRANCH }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Call /api/history with retry/backoff
+        id: call_api
+        run: |
+          MAX=5
+          DELAY=2
+          STATUS=0
+          for i in $(seq 1 $MAX); do
+            STATUS=$(curl -s -o response.json -w "%{http_code}" http://localhost:3000/api/history)
+            echo "Attempt $i HTTP Status: $STATUS"
+            if [ "$STATUS" -eq 200 ]; then
+              break
+            fi
+            echo "Retrying in ${DELAY}s..."
+            sleep $DELAY
+            DELAY=$((DELAY*2))
+          done
+          cat response.json || true
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          if [ "$STATUS" -ne 200 ]; then
+            echo "Integration check failed: /api/history returned $STATUS" >&2
+            exit 1
+          fi
+
+      - name: Upload integration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-artifacts
+          path: |
+            response.json
+            .next/next-start.log
+
+      - name: Annotate failure with response details
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '';
+            try { body = fs.readFileSync('response.json', 'utf8'); } catch {}
+            const sha = context.sha;
+            const branch = (context.payload.pull_request && context.payload.pull_request.head && context.payload.pull_request.head.ref) || (context.ref || '').replace('refs/heads/', '');
+            const endpoint = '/api/history';
+            const params = '';
+            const status = process.env.status || 'unknown';
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'integration/api-history',
+              head_sha: sha,
+              status: 'completed',
+              conclusion: 'failure',
+              output: {
+                title: 'API /api/history failed',
+                summary: `Integration call to ${endpoint} did not return 200 on branch ${branch}`,
+                text: body ? `Response body:\n\n\`${body}\`\n\nBranch: \`${branch}\`\nEndpoint: \`${endpoint}\`\nParams: \`${params}\`\nStatus: \`${status}\`` : `Branch: \`${branch}\`\nEndpoint: \`${endpoint}\`\nParams: \`${params}\`\nStatus: \`${status}\``,
+                annotations: [
+                  {
+                    path: 'src/app/api/history/route.ts',
+                    start_line: 1,
+                    end_line: 1,
+                    annotation_level: 'failure',
+                    message: body ? `HTTP ${status} - ${body}` : `HTTP ${status} error calling ${endpoint}`,
+                  }
+                ]
+              }
+            });
+          result-encoding: string
+        env:
+          status: ${{ steps.call_api.outputs.status }}
+
+      - name: Stop app
+        if: always()
+        run: |
+          if [ -f .next/next-start.pid ]; then
+            kill $(cat .next/next-start.pid) || true
+          fi
