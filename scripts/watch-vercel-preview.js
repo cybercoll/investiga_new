@@ -47,7 +47,7 @@ async function findPreviewForRun(owner, repo, run, headers) {
           let text;
           try { text = zlib.gunzipSync(jobLogs.buffer).toString('utf8'); } catch { text = jobLogs.buffer.toString('utf8'); }
           const { url, inspect } = extractVercelUrls(text);
-          if (url) return { url, inspect, runId: run.id, jobId: deployJob.id };
+          if (url) return { url, inspect, runId: run.id, jobId: deployJob.id, source: 'workflow_logs' };
         }
       }
     }
@@ -58,7 +58,47 @@ async function findPreviewForRun(owner, repo, run, headers) {
       let text;
       try { text = zlib.gunzipSync(runLogs.buffer).toString('utf8'); } catch { text = runLogs.buffer.toString('utf8'); }
       const { url, inspect } = extractVercelUrls(text);
-      if (url) return { url, inspect, runId: run.id };
+      if (url) return { url, inspect, runId: run.id, source: 'workflow_logs' };
+    }
+  } catch {}
+  return null;
+}
+
+// Novo: busca via integração Vercel (check-runs do commit)
+async function findPreviewFromChecks(owner, repo, sha, headers) {
+  try {
+    const r = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/commits/${sha}/check-runs`, { headers });
+    if (r.ok) {
+      const runs = (r.json && r.json.check_runs) ? r.json.check_runs : [];
+      const vercelRuns = runs.filter(cr => {
+        const n = (cr.name || '').toLowerCase();
+        const d = (cr.details_url || '').toLowerCase();
+        return n.includes('vercel') || d.includes('vercel.com');
+      });
+      for (const cr of vercelRuns) {
+        const blob = [cr.details_url || '', (cr.output && cr.output.summary) || '', (cr.output && cr.output.text) || ''].filter(Boolean).join('\n');
+        const { url, inspect } = extractVercelUrls(blob);
+        if (url) return { url, inspect: inspect || null, source: 'checks', check_run_id: cr.id, details_url: cr.details_url || null };
+        if (cr.details_url) return { url: cr.details_url, inspect: null, source: 'checks_details', check_run_id: cr.id, details_url: cr.details_url };
+      }
+    }
+  } catch {}
+  return null;
+}
+
+// Novo: fallback por comentários do PR (app do Vercel costuma comentar)
+async function findPreviewFromPRComments(owner, repo, prNumber, headers) {
+  try {
+    const r = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`, { headers });
+    if (r.ok) {
+      const list = Array.isArray(r.json) ? r.json : [];
+      for (let i = list.length - 1; i >= 0; i--) {
+        const body = list[i].body || '';
+        const { url, inspect } = extractVercelUrls(body);
+        if (url || inspect) {
+          return { url: url || inspect, inspect: inspect || null, source: 'comments', comment_id: list[i].id };
+        }
+      }
     }
   } catch {}
   return null;
@@ -100,6 +140,25 @@ function openUrl(u) {
     let attempt = 0;
     while (attempt < MAX_ATTEMPTS) {
       attempt++;
+
+      // 1) Integração Vercel via check-runs
+      const checkFound = await findPreviewFromChecks(owner, repo, sha, headers);
+      if (checkFound && checkFound.url) {
+        const u = checkFound.url;
+        if (/\.vercel\.app/.test(u)) {
+          const home = u.endsWith('/') ? u : (u + '/');
+          const status = home + 'status';
+          openUrl(home);
+          openUrl(status);
+          console.log(JSON.stringify({ ok: true, source: checkFound.source, url: u, inspect: checkFound.inspect || null, home, status, check_run_id: checkFound.check_run_id || null, details_url: checkFound.details_url || null }));
+        } else {
+          openUrl(u);
+          console.log(JSON.stringify({ ok: true, source: checkFound.source, url: u, openedDetailsOnly: true, check_run_id: checkFound.check_run_id || null }));
+        }
+        return;
+      }
+
+      // 2) Fallback: logs do workflow local (se existir)
       const runs = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/vercel-preview.yml/runs?event=pull_request&per_page=50`, { headers });
       if (runs.ok) {
         const list = runs.json && runs.json.workflow_runs ? runs.json.workflow_runs : [];
@@ -109,15 +168,39 @@ function openUrl(u) {
         for (const run of candidates) {
           const found = await findPreviewForRun(owner, repo, run, headers);
           if (found && found.url) {
-            const home = found.url.endsWith('/') ? found.url : (found.url + '/');
-            const status = home + 'status';
-            openUrl(home);
-            openUrl(status);
-            console.log(JSON.stringify({ ok: true, url: found.url, inspect: found.inspect || null, home, status, runId: found.runId, jobId: found.jobId || null }));
+            const u = found.url;
+            if (/\.vercel\.app/.test(u)) {
+              const home = u.endsWith('/') ? u : (u + '/');
+              const status = home + 'status';
+              openUrl(home);
+              openUrl(status);
+              console.log(JSON.stringify({ ok: true, source: found.source, url: u, inspect: found.inspect || null, home, status, runId: found.runId, jobId: found.jobId || null }));
+            } else {
+              openUrl(u);
+              console.log(JSON.stringify({ ok: true, source: found.source, url: u, openedDetailsOnly: true, runId: found.runId, jobId: found.jobId || null }));
+            }
             return;
           }
         }
       }
+
+      // 3) Fallback: comentários do PR (app do Vercel)
+      const commentFound = await findPreviewFromPRComments(owner, repo, prNumber, headers);
+      if (commentFound && commentFound.url) {
+        const u = commentFound.url;
+        if (/\.vercel\.app/.test(u)) {
+          const home = u.endsWith('/') ? u : (u + '/');
+          const status = home + 'status';
+          openUrl(home);
+          openUrl(status);
+          console.log(JSON.stringify({ ok: true, source: commentFound.source, url: u, inspect: commentFound.inspect || null, home, status, comment_id: commentFound.comment_id || null }));
+        } else {
+          openUrl(u);
+          console.log(JSON.stringify({ ok: true, source: commentFound.source, url: u, openedDetailsOnly: true, comment_id: commentFound.comment_id || null }));
+        }
+        return;
+      }
+
       await sleep(DELAY_MS);
     }
 
