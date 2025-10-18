@@ -1,0 +1,103 @@
+{
+  "total_bytes": 125679949,
+  "routes": [
+    {
+      "name": "/api",
+      "bytes": 31382
+    },
+    {
+      "name": "/status",
+      "bytes": 12452
+    },
+    {
+      "name": "/_not-found",
+      "bytes": 12007
+    },
+    {
+      "name": "/favicon.ico",
+      "bytes": 4749
+    },
+    {
+      "name": "/page",
+      "bytes": 1031
+    },
+    {
+      "name": "/pages/_error.js",
+      "bytes": 453
+    },
+    {
+      "name": "/pages/_document.js",
+      "bytes": 250
+    },
+    {
+      "name": "/pages/_app.js",
+      "bytes": 182
+    }
+  ],
+  "chunks": [
+    {
+      "name": "cd16cdafb5207913.js",
+      "bytes": 292618
+    },
+    {
+      "name": "34c4658583b69a91.js",
+      "bytes": 253201
+    },
+    {
+      "name": "a6dad97d9634a72d.js",
+      "bytes": 112594
+    },
+    {
+      "name": "569f8ca39997ccda.js",
+      "bytes": 87187
+    },
+    {
+      "name": "060f9a97930f3d04.js",
+      "bytes": 32620
+    },
+    {
+      "name": "17722e3ac4e00587.js",
+      "bytes": 20292
+    },
+    {
+      "name": "e60ef129113f6e24.js",
+      "bytes": 14647
+    },
+    {
+      "name": "6420740671896b80.js",
+      "bytes": 13155
+    },
+    {
+      "name": "turbopack-4568bc2a041b60cc.js",
+      "bytes": 9824
+    },
+    {
+      "name": "turbopack-6f9a4e06a8c886f6.js",
+      "bytes": 9794
+    },
+    {
+      "name": "turbopack-804d8a7adc57352f.js",
+      "bytes": 9794
+    },
+    {
+      "name": "1e000e3493f0861c.js",
+      "bytes": 8697
+    },
+    {
+      "name": "538cc02e54714b23.js",
+      "bytes": 6444
+    },
+    {
+      "name": "bd2dcf98c9b362f6.js",
+      "bytes": 801
+    },
+    {
+      "name": "8146905455008880.js",
+      "bytes": 173
+    },
+    {
+      "name": "ced40989b6e26226.js",
+      "bytes": 171
+    }
+  ]
+}

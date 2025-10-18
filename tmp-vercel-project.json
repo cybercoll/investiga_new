@@ -1,0 +1,386 @@
+{
+    "accountId":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+    "speedInsights":  {
+                          "id":  "4T2dWFzA15uBx2zK47pCwg0weuk",
+                          "hasData":  false
+                      },
+    "autoExposeSystemEnvs":  true,
+    "autoAssignCustomDomains":  true,
+    "autoAssignCustomDomainsUpdatedBy":  "system",
+    "buildCommand":  null,
+    "createdAt":  1760745938072,
+    "crons":  {
+                  "enabledAt":  1760745945252,
+                  "disabledAt":  null,
+                  "updatedAt":  1760745945252,
+                  "deploymentId":  "dpl_DAx8Wt9kt7QEogL6W42k7EWTxveH",
+                  "definitions":  [
+
+                                  ]
+              },
+    "devCommand":  null,
+    "directoryListing":  false,
+    "env":  [
+
+            ],
+    "framework":  null,
+    "gitForkProtection":  true,
+    "gitLFS":  false,
+    "id":  "prj_Q2iJe0AiXgNm26Z0dmwzP174HohF",
+    "installCommand":  null,
+    "lastRollbackTarget":  null,
+    "lastAliasRequest":  null,
+    "name":  "investiga-preview-test",
+    "nodeVersion":  "22.x",
+    "outputDirectory":  null,
+    "productionDeploymentsFastLane":  true,
+    "publicSource":  null,
+    "defaultResourceConfig":  {
+                                  "fluid":  true,
+                                  "functionDefaultRegions":  [
+                                                                 "iad1"
+                                                             ],
+                                  "functionDefaultTimeout":  300,
+                                  "functionDefaultMemoryType":  "standard",
+                                  "functionZeroConfigFailover":  false,
+                                  "elasticConcurrencyEnabled":  false
+                              },
+    "resourceConfig":  {
+                           "fluid":  true,
+                           "functionDefaultRegions":  [
+                                                          "iad1"
+                                                      ]
+                       },
+    "rootDirectory":  null,
+    "serverlessFunctionRegion":  "iad1",
+    "sourceFilesOutsideRootDirectory":  true,
+    "ssoProtection":  {
+                          "deploymentType":  "all_except_custom_domains"
+                      },
+    "updatedAt":  1760745945252,
+    "live":  false,
+    "gitComments":  {
+                        "onCommit":  false,
+                        "onPullRequest":  true
+                    },
+    "gitProviderOptions":  {
+                               "createDeployments":  "enabled"
+                           },
+    "webAnalytics":  {
+                         "id":  "NgUgT7uSNtVsDeY88I5Kgyrj5"
+                     },
+    "oidcTokenConfig":  {
+                            "enabled":  true,
+                            "issuerMode":  "team"
+                        },
+    "link":  {
+                 "type":  "github",
+                 "repo":  "investiga-preview-test",
+                 "repoId":  1078516929,
+                 "org":  "cybercoll",
+                 "repoOwnerId":  190680264,
+                 "gitCredentialId":  "cred_c9b9f42bb071afbdc14ff74a85cdc4f2a0baa7a6",
+                 "productionBranch":  "main",
+                 "sourceless":  true,
+                 "createdAt":  1760745938028,
+                 "updatedAt":  1760745938028,
+                 "deployHooks":  [
+
+                                 ]
+             },
+    "latestDeployments":  [
+                              {
+                                  "alias":  [
+                                                "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                            ],
+                                  "aliasAssigned":  1760747207057,
+                                  "aliasError":  null,
+                                  "automaticAliases":  [
+                                                           "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                                       ],
+                                  "builds":  [
+
+                                             ],
+                                  "createdAt":  1760747176216,
+                                  "createdIn":  "sfo1",
+                                  "creator":  {
+                                                  "uid":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                                  "email":  "cybercoll@yahoo.com.br",
+                                                  "username":  "cybercoll",
+                                                  "githubLogin":  "cybercoll"
+                                              },
+                                  "deploymentHostname":  "investiga-preview-test-k2tbyt0ee",
+                                  "forced":  false,
+                                  "id":  "dpl_2tU2tm1YQgYYGV9ZfEe767T3EkHm",
+                                  "meta":  {
+                                               "githubCommitAuthorName":  "Trae CI",
+                                               "githubCommitAuthorEmail":  "cybercoll@users.noreply.github.com",
+                                               "githubCommitMessage":  "ci(vercel): aplicar fallback de VERCEL_PROJECT_ID (prj_Q2iJe0AiXgNm26Z0dmwzP174HohF) e permitir vars para ORG_ID",
+                                               "githubCommitOrg":  "cybercoll",
+                                               "githubCommitRef":  "pr/test",
+                                               "githubCommitRepo":  "investiga-preview-test",
+                                               "githubCommitSha":  "2b3083f923c02a107e75920b96e48690948cd0ab",
+                                               "githubDeployment":  "1",
+                                               "githubOrg":  "cybercoll",
+                                               "githubRepo":  "investiga-preview-test",
+                                               "githubRepoOwnerType":  "User",
+                                               "githubCommitRepoId":  "1078516929",
+                                               "githubRepoId":  "1078516929",
+                                               "githubRepoVisibility":  "public",
+                                               "githubHost":  "github.com",
+                                               "githubCommitAuthorLogin":  "cybercoll",
+                                               "githubPrId":  "1",
+                                               "repoPushedAt":  "1760747174000",
+                                               "branchAlias":  "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                           },
+                                  "name":  "investiga-preview-test",
+                                  "plan":  "hobby",
+                                  "private":  true,
+                                  "readyState":  "READY",
+                                  "readySubstate":  "STAGED",
+                                  "target":  null,
+                                  "teamId":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                  "type":  "LAMBDAS",
+                                  "url":  "investiga-preview-test-k2tbyt0ee.vercel.app",
+                                  "userId":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                  "withCache":  false,
+                                  "buildingAt":  1760747177720,
+                                  "readyAt":  1760747206884,
+                                  "previewCommentsEnabled":  true,
+                                  "oidcTokenClaims":  {
+                                                          "sub":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:preview",
+                                                          "iss":  "https://oidc.vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                          "scope":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:preview",
+                                                          "aud":  "https://vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                          "owner":  "domicio-carlos-francisco-dourados-projects",
+                                                          "owner_id":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                                          "project":  "investiga-preview-test",
+                                                          "project_id":  "prj_Q2iJe0AiXgNm26Z0dmwzP174HohF",
+                                                          "environment":  "preview"
+                                                      }
+                              },
+                              {
+                                  "alias":  [
+                                                "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                            ],
+                                  "aliasAssigned":  1760746713387,
+                                  "aliasError":  null,
+                                  "automaticAliases":  [
+                                                           "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                                       ],
+                                  "builds":  [
+
+                                             ],
+                                  "createdAt":  1760746683410,
+                                  "createdIn":  "sfo1",
+                                  "creator":  {
+                                                  "uid":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                                  "email":  "cybercoll@yahoo.com.br",
+                                                  "username":  "cybercoll",
+                                                  "githubLogin":  "cybercoll"
+                                              },
+                                  "deploymentHostname":  "investiga-preview-test-h68muv09e",
+                                  "forced":  false,
+                                  "id":  "dpl_GYAtB68JZStmvCwm9MSjAhKho783",
+                                  "meta":  {
+                                               "githubCommitAuthorName":  "Trae CI",
+                                               "githubCommitAuthorEmail":  "cybercoll@users.noreply.github.com",
+                                               "githubCommitMessage":  "ci(vercel): usar vercel build no preview e adicionar workflow de produção",
+                                               "githubCommitOrg":  "cybercoll",
+                                               "githubCommitRef":  "pr/test",
+                                               "githubCommitRepo":  "investiga-preview-test",
+                                               "githubCommitSha":  "2658865c4ee302b9a8bb60c8fa7115f09e57443f",
+                                               "githubDeployment":  "1",
+                                               "githubOrg":  "cybercoll",
+                                               "githubRepo":  "investiga-preview-test",
+                                               "githubRepoOwnerType":  "User",
+                                               "githubCommitRepoId":  "1078516929",
+                                               "githubRepoId":  "1078516929",
+                                               "githubRepoVisibility":  "public",
+                                               "githubHost":  "github.com",
+                                               "githubCommitAuthorLogin":  "cybercoll",
+                                               "githubPrId":  "1",
+                                               "repoPushedAt":  "1760746680000",
+                                               "branchAlias":  "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                           },
+                                  "name":  "investiga-preview-test",
+                                  "plan":  "hobby",
+                                  "private":  true,
+                                  "readyState":  "READY",
+                                  "readySubstate":  "STAGED",
+                                  "target":  null,
+                                  "teamId":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                  "type":  "LAMBDAS",
+                                  "url":  "investiga-preview-test-h68muv09e.vercel.app",
+                                  "userId":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                  "withCache":  false,
+                                  "buildingAt":  1760746684322,
+                                  "readyAt":  1760746713206,
+                                  "previewCommentsEnabled":  true,
+                                  "oidcTokenClaims":  {
+                                                          "sub":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:preview",
+                                                          "iss":  "https://oidc.vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                          "scope":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:preview",
+                                                          "aud":  "https://vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                          "owner":  "domicio-carlos-francisco-dourados-projects",
+                                                          "owner_id":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                                          "project":  "investiga-preview-test",
+                                                          "project_id":  "prj_Q2iJe0AiXgNm26Z0dmwzP174HohF",
+                                                          "environment":  "preview"
+                                                      }
+                              }
+                          ],
+    "targets":  {
+                    "production":  {
+                                       "alias":  [
+                                                     "investiga-preview-test.vercel.app",
+                                                     "investiga-git-f28255-domicio-carlos-francisco-dourados-projects.vercel.app",
+                                                     "investiga-preview-te-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                                 ],
+                                       "aliasAssigned":  1760745945148,
+                                       "aliasError":  null,
+                                       "automaticAliases":  [
+                                                                "investiga-preview-te-domicio-carlos-francisco-dourados-projects.vercel.app",
+                                                                "investiga-git-f28255-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                                            ],
+                                       "builds":  [
+
+                                                  ],
+                                       "createdAt":  1760745940411,
+                                       "createdIn":  "sfo1",
+                                       "creator":  {
+                                                       "uid":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                                       "email":  "cybercoll@yahoo.com.br",
+                                                       "username":  "cybercoll",
+                                                       "githubLogin":  "cybercoll"
+                                                   },
+                                       "deploymentHostname":  "investiga-preview-test-3hdgb51sk",
+                                       "forced":  false,
+                                       "id":  "dpl_DAx8Wt9kt7QEogL6W42k7EWTxveH",
+                                       "meta":  {
+                                                    "githubCommitAuthorName":  "cybercoll",
+                                                    "githubCommitAuthorEmail":  "cybercoll@yahoo.com.br",
+                                                    "githubCommitMessage":  "Initial commit",
+                                                    "githubCommitOrg":  "cybercoll",
+                                                    "githubCommitRef":  "main",
+                                                    "githubCommitRepo":  "investiga-preview-test",
+                                                    "githubCommitSha":  "1fd6091202152c31d081aeb9a97c10f8e496db24",
+                                                    "githubDeployment":  "1",
+                                                    "githubOrg":  "cybercoll",
+                                                    "githubRepo":  "investiga-preview-test",
+                                                    "githubRepoOwnerType":  "User",
+                                                    "githubCommitRepoId":  "1078516929",
+                                                    "githubRepoId":  "1078516929",
+                                                    "githubRepoVisibility":  "public",
+                                                    "githubHost":  "github.com",
+                                                    "githubCommitAuthorLogin":  "cybercoll",
+                                                    "branchAlias":  "investiga-git-f28255-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                                },
+                                       "name":  "investiga-preview-test",
+                                       "plan":  "hobby",
+                                       "private":  true,
+                                       "readyState":  "READY",
+                                       "readySubstate":  "PROMOTED",
+                                       "target":  "production",
+                                       "teamId":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                       "type":  "LAMBDAS",
+                                       "url":  "investiga-preview-test-3hdgb51sk.vercel.app",
+                                       "userId":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                       "withCache":  false,
+                                       "buildingAt":  1760745941694,
+                                       "readyAt":  1760745944948,
+                                       "previewCommentsEnabled":  true,
+                                       "oidcTokenClaims":  {
+                                                               "sub":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:production",
+                                                               "iss":  "https://oidc.vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                               "scope":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:production",
+                                                               "aud":  "https://vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                               "owner":  "domicio-carlos-francisco-dourados-projects",
+                                                               "owner_id":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                                               "project":  "investiga-preview-test",
+                                                               "project_id":  "prj_Q2iJe0AiXgNm26Z0dmwzP174HohF",
+                                                               "environment":  "production"
+                                                           }
+                                   },
+                    "preview":  {
+                                    "alias":  [
+                                                  "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                              ],
+                                    "aliasAssigned":  1760747207057,
+                                    "aliasError":  null,
+                                    "automaticAliases":  [
+                                                             "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                                         ],
+                                    "builds":  [
+
+                                               ],
+                                    "createdAt":  1760747176216,
+                                    "createdIn":  "sfo1",
+                                    "creator":  {
+                                                    "uid":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                                    "email":  "cybercoll@yahoo.com.br",
+                                                    "username":  "cybercoll",
+                                                    "githubLogin":  "cybercoll"
+                                                },
+                                    "deploymentHostname":  "investiga-preview-test-k2tbyt0ee",
+                                    "forced":  false,
+                                    "id":  "dpl_2tU2tm1YQgYYGV9ZfEe767T3EkHm",
+                                    "meta":  {
+                                                 "githubCommitAuthorName":  "Trae CI",
+                                                 "githubCommitAuthorEmail":  "cybercoll@users.noreply.github.com",
+                                                 "githubCommitMessage":  "ci(vercel): aplicar fallback de VERCEL_PROJECT_ID (prj_Q2iJe0AiXgNm26Z0dmwzP174HohF) e permitir vars para ORG_ID",
+                                                 "githubCommitOrg":  "cybercoll",
+                                                 "githubCommitRef":  "pr/test",
+                                                 "githubCommitRepo":  "investiga-preview-test",
+                                                 "githubCommitSha":  "2b3083f923c02a107e75920b96e48690948cd0ab",
+                                                 "githubDeployment":  "1",
+                                                 "githubOrg":  "cybercoll",
+                                                 "githubRepo":  "investiga-preview-test",
+                                                 "githubRepoOwnerType":  "User",
+                                                 "githubCommitRepoId":  "1078516929",
+                                                 "githubRepoId":  "1078516929",
+                                                 "githubRepoVisibility":  "public",
+                                                 "githubHost":  "github.com",
+                                                 "githubCommitAuthorLogin":  "cybercoll",
+                                                 "githubPrId":  "1",
+                                                 "repoPushedAt":  "1760747174000",
+                                                 "branchAlias":  "investiga-git-9e4dd5-domicio-carlos-francisco-dourados-projects.vercel.app"
+                                             },
+                                    "name":  "investiga-preview-test",
+                                    "plan":  "hobby",
+                                    "private":  true,
+                                    "readyState":  "READY",
+                                    "readySubstate":  "STAGED",
+                                    "target":  null,
+                                    "teamId":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                    "type":  "LAMBDAS",
+                                    "url":  "investiga-preview-test-k2tbyt0ee.vercel.app",
+                                    "userId":  "d2coINxspXmE1Sjdhs3FE0JJ",
+                                    "withCache":  false,
+                                    "buildingAt":  1760747177720,
+                                    "readyAt":  1760747206884,
+                                    "previewCommentsEnabled":  true,
+                                    "oidcTokenClaims":  {
+                                                            "sub":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:preview",
+                                                            "iss":  "https://oidc.vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                            "scope":  "owner:domicio-carlos-francisco-dourados-projects:project:investiga-preview-test:environment:preview",
+                                                            "aud":  "https://vercel.com/domicio-carlos-francisco-dourados-projects",
+                                                            "owner":  "domicio-carlos-francisco-dourados-projects",
+                                                            "owner_id":  "team_cBXVEFj6YK3OLTTd5JLX8eTw",
+                                                            "project":  "investiga-preview-test",
+                                                            "project_id":  "prj_Q2iJe0AiXgNm26Z0dmwzP174HohF",
+                                                            "environment":  "preview"
+                                                        }
+                                }
+                },
+    "deploymentExpiration":  {
+                                 "expirationDays":  180,
+                                 "expirationDaysProduction":  365,
+                                 "expirationDaysCanceled":  30,
+                                 "expirationDaysErrored":  90,
+                                 "deploymentsToKeep":  10
+                             },
+    "features":  {
+                     "webAnalytics":  false
+                 }
+}

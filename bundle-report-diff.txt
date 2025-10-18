@@ -1,0 +1,24 @@
+# Bundle Report Diff
+Total size: prev 119.86 MB → curr 119.86 MB (Δ 5849 bytes)
+
+Routes (top changes):
+- /api: 30.6 KB (Δ ±0.0 KB)
+- /status: 12.2 KB (Δ ±0.0 KB)
+- /_not-found: 11.7 KB (Δ ±0.0 KB)
+- /favicon.ico: 4.6 KB (Δ ±0.0 KB)
+- /page: 1.0 KB (Δ ±0.0 KB)
+- /pages/_error.js: 0.4 KB (Δ ±0.0 KB)
+- /pages/_document.js: 0.2 KB (Δ ±0.0 KB)
+- /pages/_app.js: 0.2 KB (Δ ±0.0 KB)
+
+Chunks (top changes):
+- d9df2f0c78df5b42.js: 8.5 KB (Δ +8.5 KB)
+- 1e000e3493f0861c.js: 0.0 KB (Δ -8.5 KB)
+- cd16cdafb5207913.js: 285.8 KB (Δ ±0.0 KB)
+- 34c4658583b69a91.js: 247.3 KB (Δ ±0.0 KB)
+- a6dad97d9634a72d.js: 110.0 KB (Δ ±0.0 KB)
+- 569f8ca39997ccda.js: 85.1 KB (Δ ±0.0 KB)
+- 060f9a97930f3d04.js: 31.9 KB (Δ ±0.0 KB)
+- 17722e3ac4e00587.js: 19.8 KB (Δ ±0.0 KB)
+- e60ef129113f6e24.js: 14.3 KB (Δ ±0.0 KB)
+- 6420740671896b80.js: 12.8 KB (Δ ±0.0 KB)

@@ -1,0 +1,132 @@
+{
+  "routeDiffs": [
+    {
+      "name": "/api",
+      "prev": 31382,
+      "curr": 31382,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "/status",
+      "prev": 12452,
+      "curr": 12452,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "/_not-found",
+      "prev": 12007,
+      "curr": 12007,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "/favicon.ico",
+      "prev": 4749,
+      "curr": 4749,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "/page",
+      "prev": 1031,
+      "curr": 1031,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "/pages/_error.js",
+      "prev": 453,
+      "curr": 453,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "/pages/_document.js",
+      "prev": 250,
+      "curr": 250,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "/pages/_app.js",
+      "prev": 182,
+      "curr": 182,
+      "delta": 0,
+      "absDelta": 0
+    }
+  ],
+  "chunkDiffs": [
+    {
+      "name": "d9df2f0c78df5b42.js",
+      "prev": 0,
+      "curr": 8734,
+      "delta": 8734,
+      "absDelta": 8734
+    },
+    {
+      "name": "1e000e3493f0861c.js",
+      "prev": 8697,
+      "curr": 0,
+      "delta": -8697,
+      "absDelta": 8697
+    },
+    {
+      "name": "cd16cdafb5207913.js",
+      "prev": 292618,
+      "curr": 292618,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "34c4658583b69a91.js",
+      "prev": 253201,
+      "curr": 253201,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "a6dad97d9634a72d.js",
+      "prev": 112594,
+      "curr": 112594,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "569f8ca39997ccda.js",
+      "prev": 87187,
+      "curr": 87187,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "060f9a97930f3d04.js",
+      "prev": 32620,
+      "curr": 32620,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "17722e3ac4e00587.js",
+      "prev": 20292,
+      "curr": 20292,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "e60ef129113f6e24.js",
+      "prev": 14647,
+      "curr": 14647,
+      "delta": 0,
+      "absDelta": 0
+    },
+    {
+      "name": "6420740671896b80.js",
+      "prev": 13155,
+      "curr": 13155,
+      "delta": 0,
+      "absDelta": 0
+    }
+  ]
+}
