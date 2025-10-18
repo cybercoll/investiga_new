@@ -127,7 +127,7 @@ function openUrl(u) {
     if (!user.ok) throw new Error(`Falha ao obter usuário: ${user.status} ${user.text}`);
     const owner = user.json.login;
     const repo = 'investiga-preview-test';
-    const prNumber = 1;
+    const prNumber = 2;
 
     const pr = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, { headers });
     if (!pr.ok) throw new Error(`Falha ao obter PR: ${pr.status} ${pr.text}`);
@@ -143,22 +143,16 @@ function openUrl(u) {
 
       // 1) Integração Vercel via check-runs
       const checkFound = await findPreviewFromChecks(owner, repo, sha, headers);
-      if (checkFound && checkFound.url) {
+      if (checkFound && checkFound.url && /\.vercel\.app/.test(checkFound.url)) {
         const u = checkFound.url;
-        if (/\.vercel\.app/.test(u)) {
-          const home = u.endsWith('/') ? u : (u + '/');
-          const status = home + 'status';
-          openUrl(home);
-          openUrl(status);
-          console.log(JSON.stringify({ ok: true, source: checkFound.source, url: u, inspect: checkFound.inspect || null, home, status, check_run_id: checkFound.check_run_id || null, details_url: checkFound.details_url || null }));
-        } else {
-          openUrl(u);
-          console.log(JSON.stringify({ ok: true, source: checkFound.source, url: u, openedDetailsOnly: true, check_run_id: checkFound.check_run_id || null }));
-        }
+        const home = u.endsWith('/') ? u : (u + '/');
+        const status = home + 'status';
+        openUrl(home);
+        openUrl(status);
+        console.log(JSON.stringify({ ok: true, source: checkFound.source, url: u, inspect: checkFound.inspect || null, home, status, check_run_id: checkFound.check_run_id || null, details_url: checkFound.details_url || null }));
         return;
       }
-
-      // 2) Fallback: logs do workflow local (se existir)
+      // Se apenas detalhes genéricos (ex: vercel.com/github), continua tentando outras fontes
       const runs = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/vercel-preview.yml/runs?event=pull_request&per_page=50`, { headers });
       if (runs.ok) {
         const list = runs.json && runs.json.workflow_runs ? runs.json.workflow_runs : [];

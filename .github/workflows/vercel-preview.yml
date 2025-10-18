@@ -49,7 +49,20 @@ jobs:
         id: vercel-deploy
         run: |
           START=$(date +%s)
-          OUT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }})
+          ENV_ARGS=""
+          add_env() { if [ -n "$2" ]; then ENV_ARGS="$ENV_ARGS --env $1=$2"; fi }
+          add_env GITHUB_TOKEN "${{ secrets.GITHUB_TOKEN || vars.GITHUB_TOKEN }}"
+          add_env GITHUB_OWNER "${{ secrets.GITHUB_OWNER || vars.GITHUB_OWNER }}"
+          add_env GITHUB_REPO "${{ secrets.GITHUB_REPO || vars.GITHUB_REPO }}"
+          add_env GITHUB_BRANCH "${{ secrets.GITHUB_BRANCH || vars.GITHUB_BRANCH }}"
+          add_env DIRECT_DATA_API_KEY "${{ secrets.DIRECT_DATA_API_KEY || vars.DIRECT_DATA_API_KEY }}"
+          add_env DIRECT_DATA_BASE_URL "${{ secrets.DIRECT_DATA_BASE_URL || vars.DIRECT_DATA_BASE_URL }}"
+          add_env DIRECT_DATA_AUTH_HEADER "${{ secrets.DIRECT_DATA_AUTH_HEADER || vars.DIRECT_DATA_AUTH_HEADER }}"
+          add_env DIRECT_DATA_AUTH_SCHEME "${{ secrets.DIRECT_DATA_AUTH_SCHEME || vars.DIRECT_DATA_AUTH_SCHEME }}"
+          add_env NEXT_PUBLIC_SUPABASE_URL "${{ secrets.NEXT_PUBLIC_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL }}"
+          add_env NEXT_PUBLIC_SUPABASE_ANON_KEY "${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
+          add_env SUPABASE_SERVICE_ROLE_KEY "${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}"
+          OUT=$(vercel deploy --prebuilt $ENV_ARGS --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }})
           END=$(date +%s)
           # Extract deployment URL (.vercel.app) and Vercel dashboard inspect URL
           URL=$(echo "$OUT" | grep -oE 'https?://[a-zA-Z0-9.-]+\.vercel\.app' | tail -n 1)
@@ -87,12 +100,28 @@ jobs:
           SEARCH_MS=$(awk "BEGIN { printf \"%.0f\", $SEARCH_TIME*1000 }")
           SEARCH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$SEARCH_PAYLOAD" "$URL/api/search")
 
+          # Measure POST /api/search (CEP)
+          CEP_PAYLOAD='{"query":"01001000","providers":["cep"]}'
+          CEP_TIME=$(curl -s -o /dev/null -w "%{time_total}" -X POST -H "Content-Type: application/json" -d "$CEP_PAYLOAD" "$URL/api/search")
+          CEP_MS=$(awk "BEGIN { printf \"%.0f\", $CEP_TIME*1000 }")
+          CEP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$CEP_PAYLOAD" "$URL/api/search")
+
+          # Measure POST /api/search (CPF)
+          CPF_PAYLOAD='{"query":"52998224725","providers":["cpf"]}'
+          CPF_TIME=$(curl -s -o /dev/null -w "%{time_total}" -X POST -H "Content-Type: application/json" -d "$CPF_PAYLOAD" "$URL/api/search")
+          CPF_MS=$(awk "BEGIN { printf \"%.0f\", $CPF_TIME*1000 }")
+          CPF_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$CPF_PAYLOAD" "$URL/api/search")
+
           echo "resp_root_ms=$ROOT_MS" >> $GITHUB_OUTPUT
           echo "resp_root_status=$ROOT_STATUS" >> $GITHUB_OUTPUT
           echo "resp_history_ms=$HISTORY_MS" >> $GITHUB_OUTPUT
           echo "resp_history_status=$HISTORY_STATUS" >> $GITHUB_OUTPUT
           echo "resp_search_ms=$SEARCH_MS" >> $GITHUB_OUTPUT
           echo "resp_search_status=$SEARCH_STATUS" >> $GITHUB_OUTPUT
+          echo "resp_cep_ms=$CEP_MS" >> $GITHUB_OUTPUT
+          echo "resp_cep_status=$CEP_STATUS" >> $GITHUB_OUTPUT
+          echo "resp_cpf_ms=$CPF_MS" >> $GITHUB_OUTPUT
+          echo "resp_cpf_status=$CPF_STATUS" >> $GITHUB_OUTPUT
 
           # Generate per-route bundle report from build output
           node scripts/bundle-report.js > bundle-report.txt || echo "Bundle report generation failed"
@@ -126,6 +155,10 @@ jobs:
             const histStatus = process.env.resp_history_status || '';
             const searchMs = Number(process.env.resp_search_ms || 0);
             const searchStatus = process.env.resp_search_status || '';
+            const cepMs = Number(process.env.resp_cep_ms || 0);
+            const cepStatus = process.env.resp_cep_status || '';
+            const cpfMs = Number(process.env.resp_cpf_ms || 0);
+            const cpfStatus = process.env.resp_cpf_status || '';
 
             // Find latest run of check-env.yml for this PR head SHA
             let integration = { status: 'unknown', conclusion: 'unknown', runId: null };
@@ -205,7 +238,7 @@ jobs:
             let bundleReport = '';
             try { bundleReport = fs.readFileSync('bundle-report.txt', 'utf8'); } catch (e) { /* ignore */ }
 
-            const metrics = `**Bundle size**: \`${bundleMb} MB\`\n**Page /**: \`${rootMs} ms\` (HTTP ${rootStatus})\n**API /api/history**: \`${histMs} ms\` (HTTP ${histStatus})\n**POST /api/search**: \`${searchMs} ms\` (HTTP ${searchStatus})`;
+            const metrics = `**Bundle size**: \`${bundleMb} MB\`\n**Page /**: \`${rootMs} ms\` (HTTP ${rootStatus})\n**API /api/history**: \`${histMs} ms\` (HTTP ${histStatus})\n**POST /api/search**: \`${searchMs} ms\` (HTTP ${searchStatus})\n**POST /api/search (CEP)**: \`${cepMs} ms\` (HTTP ${cepStatus})\n**POST /api/search (CPF)**: \`${cpfMs} ms\` (HTTP ${cpfStatus})`;
 
             const body = `${marker}\n### Preview\n**URL**: ${url}\nCommit: \`${sha}\`\nBranch: \`${branch}\`\n\n**Build time**: \`${buildSec}s\`  |  **Deploy time**: \`${deploySec}s\`\nStatus: ${previewBadge}\n${vercelLine}\n\n### Metrics\n${metrics}\n\n### Bundle Report\n${bundleReport ? bundleReport.split('\n').slice(0, 12).join('\n') + '\n' : 'See artifact: bundle-report'}\n\n### CI\nStatus: ${checkEnvBadge}\n${integrationLine}\n\n### Artifacts (Preview)\n${artifactsMd}\n\n### Artifacts (Check Env)\n${envArtifactsMd}`;
 
