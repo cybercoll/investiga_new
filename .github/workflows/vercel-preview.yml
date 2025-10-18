@@ -24,14 +24,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build app
+      - name: Build with Vercel CLI
         id: build_app
         run: |
           START=$(date +%s)
-          npm run build
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
           END=$(date +%s)
           MS=$(( (END-START)*1000 ))
           echo "build_ms=$MS" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Install Vercel CLI
         run: npm i -g vercel

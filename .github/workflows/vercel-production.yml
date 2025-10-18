@@ -1,0 +1,85 @@
+name: Vercel Production Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Pull Vercel env (production)
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build with Vercel CLI
+        id: build_app
+        run: |
+          START=$(date +%s)
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          END=$(date +%s)
+          MS=$(( (END-START)*1000 ))
+          echo "build_ms=$MS" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel (prebuilt)
+        id: vercel-deploy
+        run: |
+          START=$(date +%s)
+          OUT=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          END=$(date +%s)
+          URL=$(echo "$OUT" | grep -oE 'https?://[a-zA-Z0-9.-]+\.vercel\.app' | tail -n 1)
+          INSPECT=$(echo "$OUT" | grep -oE 'https?://vercel\.com/[^ ]+' | tail -n 1)
+          MS=$(( (END-START)*1000 ))
+          echo "Production URL: $URL"
+          echo "production_url=$URL" >> $GITHUB_OUTPUT
+          echo "inspect_url=$INSPECT" >> $GITHUB_OUTPUT
+          echo "deploy_ms=$MS" >> $GITHUB_OUTPUT
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Collect production metrics
+        id: collect_metrics
+        run: |
+          SIZE_BYTES=$(du -sb .next | cut -f1)
+          SIZE_MB=$(awk "BEGIN { printf \"%.2f\", $SIZE_BYTES/1024/1024 }")
+          echo "bundle_size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
+          echo "bundle_size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
+
+          URL="${{ steps.vercel-deploy.outputs.production_url }}"
+          ROOT_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$URL/")
+          ROOT_MS=$(awk "BEGIN { printf \"%.0f\", $ROOT_TIME*1000 }")
+          ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/")
+          echo "resp_root_ms=$ROOT_MS" >> $GITHUB_OUTPUT
+          echo "resp_root_status=$ROOT_STATUS" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "Production deploy: ${{ steps.vercel-deploy.outputs.production_url }}"
+          echo "Inspect: ${{ steps.vercel-deploy.outputs.inspect_url }}"
+          echo "Build: ${{ steps.build_app.outputs.build_ms }} ms"
+          echo "Deploy: ${{ steps.vercel-deploy.outputs.deploy_ms }} ms"
+          echo "Bundle: ${{ steps.collect_metrics.outputs.bundle_size_mb }} MB"
