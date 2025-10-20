@@ -51,16 +51,16 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          TOKEN="${VERCEL_TOKEN:-${VERCEL_TOKEN_INPUT:-nb8Zy8ZPJorzEG8BP61UJIPO}}"
-          ORG="${VERCEL_ORG_ID:-team_cBXVEFj6YK3OLTTd5JLX8eTw}"
-          PROJECT="${VERCEL_PROJECT_ID:-prj_Q2iJe0AiXgNm26Z0dmwzP174HohF}"
+          TOKEN="${VERCEL_TOKEN:-$VERCEL_TOKEN_INPUT}"
           if [ -z "$TOKEN" ]; then
             echo "No Vercel token provided; skipping CLI deploy."
             echo "cli_url=" >> $GITHUB_OUTPUT
             exit 0
           fi
           npx vercel --version || npm i -g vercel
-          OUT=$(npx vercel deploy --prod --yes --token "$TOKEN" --project "$PROJECT" --scope "$ORG")
+          OUT=$(npx vercel deploy --prod --yes --token "$TOKEN" \
+            ${VERCEL_PROJECT_ID:+--project "$VERCEL_PROJECT_ID"} \
+            ${VERCEL_ORG_ID:+--scope "$VERCEL_ORG_ID"})
           echo "$OUT"
           URL=$(echo "$OUT" | grep -Eo 'https?://[a-zA-Z0-9.-]+\\.vercel\\.app' | tail -n1)
           echo "cli_url=$URL" >> $GITHUB_OUTPUT
