@@ -215,14 +215,31 @@ jobs:
             // Build badges
             const previewBadge = `![Preview](https://img.shields.io/github/actions/workflow/status/${context.repo.owner}/${context.repo.repo}/vercel-preview.yml?branch=${branch})`;
             const checkEnvBadge = `![Check Env](https://img.shields.io/github/actions/workflow/status/${context.repo.owner}/${context.repo.repo}/check-env.yml?branch=${branch})`;
-            // Prefer dynamic endpoint badge served by our preview environment if available
-            const integEndpoint = url ? `https://img.shields.io/endpoint?url=${encodeURIComponent(url + '/api/badge/integration?sha=' + sha)}` : '';
-            let integrationBadge = integEndpoint ? `![Integration](${integEndpoint})` : '';
-            if (!integrationBadge) {
-              const colorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', skipped: 'lightgrey', neutral: 'blue', timed_out: 'orange', action_required: 'yellow', stale: 'yellow' };
-              const integColor = colorMap[integration.conclusion] || 'blue';
-              integrationBadge = `![Integration](https://img.shields.io/badge/integration-${encodeURIComponent(integration.conclusion || 'unknown')}-${integColor})`;
-            }
+
+            // Helpers for colors
+            const colorBy = (val, thresholds) => {
+              const [g, y, o] = thresholds; // green, yellow, orange
+              if (val <= g) return 'brightgreen';
+              if (val <= y) return 'yellow';
+              if (val <= o) return 'orange';
+              return 'red';
+            };
+            const safe = (v) => encodeURIComponent(String(v ?? 'n/a'));
+            const badge = (label, message, color) => url ? `![${label}](https://img.shields.io/endpoint?url=${encodeURIComponent(url + '/api/badge?label=' + safe(label) + '&message=' + safe(message) + '&color=' + safe(color))})` : '';
+
+            // Integration badge via endpoint hosted on preview
+            const integColorMap = { success: 'brightgreen', failure: 'red', cancelled: 'lightgrey', skipped: 'lightgrey', neutral: 'blue', timed_out: 'orange', action_required: 'yellow', stale: 'yellow' };
+            const integrationBadge = badge('integration', integration.conclusion || 'unknown', integColorMap[integration.conclusion] || 'blue');
+
+            // Metric badges via endpoint hosted on preview
+            const buildBadge = badge('build', `${buildSec}s`, colorBy(buildMs, [60000, 180000, 480000])); // 60s/180s/480s
+            const deployBadge = badge('deploy', `${deploySec}s`, colorBy(deployMs, [60000, 180000, 480000]));
+            const bundleBadge = badge('bundle', `${bundleMb} MB`, colorBy(Number(bundleMb) * 1000, [1000, 2000, 3000])); // thresholds in MB
+            const rootBadge = badge('GET /', `${rootMs} ms`, colorBy(rootMs, [300, 800, 1500]));
+            const histBadge = badge('GET /api/history', `${histMs} ms`, colorBy(histMs, [300, 800, 1500]));
+            const searchBadge = badge('POST /api/search', `${searchMs} ms`, colorBy(searchMs, [500, 1200, 2000]));
+            const cepBadge = badge('POST /api/search (CEP)', `${cepMs} ms`, colorBy(cepMs, [500, 1200, 2000]));
+            const cpfBadge = badge('POST /api/search (CPF)', `${cpfMs} ms`, colorBy(cpfMs, [500, 1200, 2000]));
 
             // Artifacts for this preview run
             let artifactsMd = 'Artifacts (Preview): none';
@@ -253,7 +270,9 @@ jobs:
 
             const metrics = `**Bundle size**: \`${bundleMb} MB\`\n**Page /**: \`${rootMs} ms\` (HTTP ${rootStatus})\n**API /api/history**: \`${histMs} ms\` (HTTP ${histStatus})\n**POST /api/search**: \`${searchMs} ms\` (HTTP ${searchStatus})\n**POST /api/search (CEP)**: \`${cepMs} ms\` (HTTP ${cepStatus})\n**POST /api/search (CPF)**: \`${cpfMs} ms\` (HTTP ${cpfStatus})`;
 
-            const body = `${marker}\n### Preview\n**URL**: ${url}\nCommit: \`${sha}\`\nBranch: \`${branch}\`\n\n**Build time**: \`${buildSec}s\`  |  **Deploy time**: \`${deploySec}s\`\nStatus: ${previewBadge}\n${vercelLine}\n\n### Metrics\n${metrics}\n\n### Bundle Report\n${bundleReport ? bundleReport.split('\n').slice(0, 12).join('\n') + '\n' : 'See artifact: bundle-report'}\n\n### CI\nStatus: ${checkEnvBadge}\n${integrationLine}\n\n### Artifacts (Preview)\n${artifactsMd}\n\n### Artifacts (Check Env)\n${envArtifactsMd}`;
+            const badgesLine = url ? `${buildBadge} ${deployBadge} ${bundleBadge}` : '';
+            const perfLine = url ? `${rootBadge} ${histBadge} ${searchBadge} ${cepBadge} ${cpfBadge}` : '';
+            const body = `${marker}\n### Preview\n**URL**: ${url}\nCommit: \`${sha}\`\nBranch: \`${branch}\`\n\n**Build time**: \`${buildSec}s\`  |  **Deploy time**: \`${deploySec}s\`\nStatus: ${previewBadge}\n${vercelLine}\n${badgesLine}\n\n### Metrics\n${metrics}\n${perfLine}\n\n### Bundle Report\n${bundleReport ? bundleReport.split('\n').slice(0, 12).join('\n') + '\n' : 'See artifact: bundle-report'}\n\n### CI\nStatus: ${checkEnvBadge}\n${integrationLine}\n\n### Artifacts (Preview)\n${artifactsMd}\n\n### Artifacts (Check Env)\n${envArtifactsMd}`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
