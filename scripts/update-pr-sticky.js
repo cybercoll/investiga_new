@@ -33,7 +33,7 @@ function msBetween(a, b) {
     if (!user.ok) throw new Error(`Falha ao obter usuário: ${user.status} ${user.text}`);
     const owner = user.json.login;
     const repo = 'investiga-preview-test';
-    const prNumber = 1;
+    const prNumber = Number(process.env.PR_NUMBER || 1);
 
     const pr = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, { headers });
     if (!pr.ok) throw new Error(`Falha ao obter PR: ${pr.status} ${pr.text}`);

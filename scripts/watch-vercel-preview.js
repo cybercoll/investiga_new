@@ -127,7 +127,7 @@ function openUrl(u) {
     if (!user.ok) throw new Error(`Falha ao obter usuário: ${user.status} ${user.text}`);
     const owner = user.json.login;
     const repo = 'investiga-preview-test';
-    const prNumber = 2;
+    const prNumber = Number(process.env.PR_NUMBER || 2);
 
     const pr = await fetchJSON(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`, { headers });
     if (!pr.ok) throw new Error(`Falha ao obter PR: ${pr.status} ${pr.text}`);
