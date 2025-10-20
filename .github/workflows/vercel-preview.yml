@@ -7,6 +7,10 @@ on:
 jobs:
   deploy-preview:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: write
       pull-requests: write
@@ -284,3 +288,23 @@ jobs:
           resp_history_status: ${{ steps.collect_metrics.outputs.resp_history_status }}
           resp_search_ms: ${{ steps.collect_metrics.outputs.resp_search_ms }}
           resp_search_status: ${{ steps.collect_metrics.outputs.resp_search_status }}
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Preview";
+            echo "URL: ${{ steps.vercel-deploy.outputs.preview_url }}";
+            echo "Inspect: ${{ steps.vercel-deploy.outputs.inspect_url }}";
+            echo "";
+            echo "Build: ${{ steps.build_app.outputs.build_ms }} ms";
+            echo "Deploy: ${{ steps.vercel-deploy.outputs.deploy_ms }} ms";
+            echo "Bundle: ${{ steps.collect_metrics.outputs.bundle_size_mb }} MB";
+            echo "";
+            echo "Node: $(node -v)";
+            echo "Badge: ![Preview](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/vercel-preview.yml?branch=${{ github.ref_name }})";
+            echo "";
+            echo "Root: ${{ steps.collect_metrics.outputs.resp_root_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_root_status }})";
+            echo "History: ${{ steps.collect_metrics.outputs.resp_history_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_history_status }})";
+            echo "Search: ${{ steps.collect_metrics.outputs.resp_search_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_search_status }})";
+          } >> $GITHUB_STEP_SUMMARY

@@ -7,6 +7,10 @@ on:
 jobs:
   deploy-production:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: read
       actions: read
@@ -89,6 +93,7 @@ jobs:
           echo "resp_root_status=$ROOT_STATUS" >> $GITHUB_OUTPUT
 
       - name: Summary
+        if: always()
         run: |
           {
             echo "### Production";
