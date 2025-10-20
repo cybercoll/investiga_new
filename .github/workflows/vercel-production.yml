@@ -96,11 +96,44 @@ jobs:
           echo "bundle_size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
 
           URL="${{ steps.fetch_production.outputs.production_url }}"
+
+          # Root
           ROOT_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$URL/")
           ROOT_MS=$(awk "BEGIN { printf \"%.0f\", $ROOT_TIME*1000 }")
           ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/")
           echo "resp_root_ms=$ROOT_MS" >> $GITHUB_OUTPUT
           echo "resp_root_status=$ROOT_STATUS" >> $GITHUB_OUTPUT
+
+          # History
+          HISTORY_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$URL/api/history")
+          HISTORY_MS=$(awk "BEGIN { printf \"%.0f\", $HISTORY_TIME*1000 }")
+          HISTORY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/history")
+          echo "resp_history_ms=$HISTORY_MS" >> $GITHUB_OUTPUT
+          echo "resp_history_status=$HISTORY_STATUS" >> $GITHUB_OUTPUT
+
+          # Search real providers + directdata
+          SEARCH_PAYLOAD='{"query":"Brasil","providers":["wikipedia","duckduckgo","github","directdata"]}'
+          SEARCH_TIME=$(curl -s -o /dev/null -w "%{time_total}" -X POST -H "Content-Type: application/json" -d "$SEARCH_PAYLOAD" "$URL/api/search")
+          SEARCH_MS=$(awk "BEGIN { printf \"%.0f\", $SEARCH_TIME*1000 }")
+          SEARCH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$SEARCH_PAYLOAD" "$URL/api/search")
+          echo "resp_search_ms=$SEARCH_MS" >> $GITHUB_OUTPUT
+          echo "resp_search_status=$SEARCH_STATUS" >> $GITHUB_OUTPUT
+
+          # Search CEP
+          CEP_PAYLOAD='{"query":"01001000","providers":["cep"]}'
+          CEP_TIME=$(curl -s -o /dev/null -w "%{time_total}" -X POST -H "Content-Type: application/json" -d "$CEP_PAYLOAD" "$URL/api/search")
+          CEP_MS=$(awk "BEGIN { printf \"%.0f\", $CEP_TIME*1000 }")
+          CEP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$CEP_PAYLOAD" "$URL/api/search")
+          echo "resp_cep_ms=$CEP_MS" >> $GITHUB_OUTPUT
+          echo "resp_cep_status=$CEP_STATUS" >> $GITHUB_OUTPUT
+
+          # Search CPF
+          CPF_PAYLOAD='{"query":"52998224725","providers":["cpf"]}'
+          CPF_TIME=$(curl -s -o /dev/null -w "%{time_total}" -X POST -H "Content-Type: application/json" -d "$CPF_PAYLOAD" "$URL/api/search")
+          CPF_MS=$(awk "BEGIN { printf \"%.0f\", $CPF_TIME*1000 }")
+          CPF_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -d "$CPF_PAYLOAD" "$URL/api/search")
+          echo "resp_cpf_ms=$CPF_MS" >> $GITHUB_OUTPUT
+          echo "resp_cpf_status=$CPF_STATUS" >> $GITHUB_OUTPUT
 
       - name: Summary
         if: always()
@@ -118,4 +151,27 @@ jobs:
             echo "Badge: ![Production](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/vercel-production.yml?branch=${{ github.ref_name }})";
             echo "";
             echo "Root: ${{ steps.collect_metrics.outputs.resp_root_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_root_status }})";
+            echo "History: ${{ steps.collect_metrics.outputs.resp_history_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_history_status }})";
+            echo "Search: ${{ steps.collect_metrics.outputs.resp_search_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_search_status }})";
+            echo "CEP: ${{ steps.collect_metrics.outputs.resp_cep_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_cep_status }})";
+            echo "CPF: ${{ steps.collect_metrics.outputs.resp_cpf_ms }} ms (HTTP ${{ steps.collect_metrics.outputs.resp_cpf_status }})";
+            echo "";
+            echo "Badges:";
+            echo "$(
+              PROD_URL='${{ steps.fetch_production.outputs.production_url }}';
+              BUILD_MS='${{ steps.build_local.outputs.build_ms }}';
+              DEPLOY_MS='${{ steps.fetch_production.outputs.deploy_ms }}';
+              BUNDLE_BYTES='${{ steps.collect_metrics.outputs.bundle_size_bytes }}';
+              BUNDLE_MB='${{ steps.collect_metrics.outputs.bundle_size_mb }}';
+              ROOT_MS='${{ steps.collect_metrics.outputs.resp_root_ms }}';
+              color_by() { local v=$1 g=$2 y=$3 o=$4; if [ -z "$v" ]; then echo grey; elif [ "$v" -le "$g" ]; then echo brightgreen; elif [ "$v" -le "$y" ]; then echo yellow; elif [ "$v" -le "$o" ]; then echo orange; else echo red; fi; };
+              COLOR_BUILD=$(color_by "$BUILD_MS" 60000 180000 480000);
+              COLOR_DEPLOY=$(color_by "$DEPLOY_MS" 60000 180000 480000);
+              COLOR_BUNDLE=$(color_by "$BUNDLE_BYTES" 1048576 2097152 3145728);
+              COLOR_ROOT=$(color_by "$ROOT_MS" 300 800 1500);
+              echo "![build](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=build&message=${BUILD_MS}ms&color=$COLOR_BUILD) \
+![deploy](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=deploy&message=${DEPLOY_MS}ms&color=$COLOR_DEPLOY) \
+![bundle](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=bundle&message=${BUNDLE_MB}MB&color=$COLOR_BUNDLE) \
+![root](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=root&message=${ROOT_MS}ms&color=$COLOR_ROOT)";
+            )";
           } >> $GITHUB_STEP_SUMMARY
