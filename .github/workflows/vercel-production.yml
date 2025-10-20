@@ -43,6 +43,28 @@ jobs:
           MS=$(( (END-START)*1000 ))
           echo "build_ms=$MS" >> $GITHUB_OUTPUT
 
+      - name: Deploy to Vercel (CLI, production)
+        id: vercel_cli
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN_INPUT: ${{ inputs.vercel_token }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          TOKEN="${VERCEL_TOKEN:-$VERCEL_TOKEN_INPUT}"
+          if [ -z "$TOKEN" ]; then
+            echo "No Vercel token provided; skipping CLI deploy."
+            echo "cli_url=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          npx vercel --version || npm i -g vercel
+          OUT=$(npx vercel deploy --prod --yes --token "$TOKEN" \
+            ${VERCEL_PROJECT_ID:+--project "$VERCEL_PROJECT_ID"} \
+            ${VERCEL_ORG_ID:+--scope "$VERCEL_ORG_ID"})
+          echo "$OUT"
+          URL=$(echo "$OUT" | grep -Eo 'https?://[a-zA-Z0-9.-]+\\.vercel\\.app' | tail -n1)
+          echo "cli_url=$URL" >> $GITHUB_OUTPUT
+
       - name: Wait for Vercel production (GitHub checks)
         id: fetch_production
         uses: actions/github-script@v7
@@ -87,6 +109,17 @@ jobs:
             core.setOutput('inspect_url', inspect || '');
             core.setOutput('deploy_ms', String(deployMs));
 
+      - name: Resolve production URL
+        id: resolve_prod_url
+        run: |
+          URL_CLI="${{ steps.vercel_cli.outputs.cli_url }}"
+          URL_CHECKS="${{ steps.fetch_production.outputs.production_url }}"
+          URL=""
+          if [ -n "$URL_CLI" ]; then URL="$URL_CLI"; else URL="$URL_CHECKS"; fi
+          echo "production_url=$URL" >> $GITHUB_OUTPUT
+          echo "inspect_url=${{ steps.fetch_production.outputs.inspect_url }}" >> $GITHUB_OUTPUT
+          echo "deploy_ms=${{ steps.fetch_production.outputs.deploy_ms }}" >> $GITHUB_OUTPUT
+
       - name: Collect production metrics
         id: collect_metrics
         run: |
@@ -95,7 +128,7 @@ jobs:
           echo "bundle_size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
           echo "bundle_size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
 
-          URL="${{ steps.fetch_production.outputs.production_url }}"
+          URL="${{ steps.resolve_prod_url.outputs.production_url }}"
 
           # Root
           ROOT_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$URL/")
@@ -140,7 +173,7 @@ jobs:
         run: |
           {
             echo "### Production";
-            echo "URL: ${{ steps.fetch_production.outputs.production_url }}";
+            echo "URL: ${{ steps.resolve_prod_url.outputs.production_url }}";
             echo "Inspect: ${{ steps.fetch_production.outputs.inspect_url }}";
             echo "";
             echo "Build: ${{ steps.build_local.outputs.build_ms }} ms";
