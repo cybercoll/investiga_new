@@ -164,14 +164,26 @@ jobs:
               BUNDLE_BYTES='${{ steps.collect_metrics.outputs.bundle_size_bytes }}';
               BUNDLE_MB='${{ steps.collect_metrics.outputs.bundle_size_mb }}';
               ROOT_MS='${{ steps.collect_metrics.outputs.resp_root_ms }}';
+              HISTORY_MS='${{ steps.collect_metrics.outputs.resp_history_ms }}';
+              SEARCH_MS='${{ steps.collect_metrics.outputs.resp_search_ms }}';
+              CEP_MS='${{ steps.collect_metrics.outputs.resp_cep_ms }}';
+              CPF_MS='${{ steps.collect_metrics.outputs.resp_cpf_ms }}';
               color_by() { local v=$1 g=$2 y=$3 o=$4; if [ -z "$v" ]; then echo grey; elif [ "$v" -le "$g" ]; then echo brightgreen; elif [ "$v" -le "$y" ]; then echo yellow; elif [ "$v" -le "$o" ]; then echo orange; else echo red; fi; };
               COLOR_BUILD=$(color_by "$BUILD_MS" 60000 180000 480000);
               COLOR_DEPLOY=$(color_by "$DEPLOY_MS" 60000 180000 480000);
               COLOR_BUNDLE=$(color_by "$BUNDLE_BYTES" 1048576 2097152 3145728);
               COLOR_ROOT=$(color_by "$ROOT_MS" 300 800 1500);
+              COLOR_HISTORY=$(color_by "$HISTORY_MS" 300 800 1500);
+              COLOR_SEARCH=$(color_by "$SEARCH_MS" 300 800 1500);
+              COLOR_CEP=$(color_by "$CEP_MS" 300 800 1500);
+              COLOR_CPF=$(color_by "$CPF_MS" 300 800 1500);
               echo "![build](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=build&message=${BUILD_MS}ms&color=$COLOR_BUILD) \
 ![deploy](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=deploy&message=${DEPLOY_MS}ms&color=$COLOR_DEPLOY) \
 ![bundle](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=bundle&message=${BUNDLE_MB}MB&color=$COLOR_BUNDLE) \
-![root](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=root&message=${ROOT_MS}ms&color=$COLOR_ROOT)";
+![root](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=root&message=${ROOT_MS}ms&color=$COLOR_ROOT) \
+![history](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=history&message=${HISTORY_MS}ms&color=$COLOR_HISTORY) \
+![search](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=search&message=${SEARCH_MS}ms&color=$COLOR_SEARCH) \
+![cep](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=cep&message=${CEP_MS}ms&color=$COLOR_CEP) \
+![cpf](https://img.shields.io/endpoint?url=$PROD_URL/api/badge?label=cpf&message=${CPF_MS}ms&color=$COLOR_CPF)";
             )";
           } >> $GITHUB_STEP_SUMMARY
