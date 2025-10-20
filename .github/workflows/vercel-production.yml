@@ -26,6 +26,18 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel
 
+      - name: Check Vercel configuration (production)
+        run: npm run check:vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}
+
+      - name: Sync Actions variables (VERCEL_*)
+        run: node scripts/set-actions-vars.js --vercel-token="${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }}" --project-id="${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}" --org-id="${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Pull Vercel env (production)
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }}
         env:

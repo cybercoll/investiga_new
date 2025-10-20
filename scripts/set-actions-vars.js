@@ -3,6 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 function readGithubToken() {
+  // Prefer token from environment when running in GitHub Actions
+  if (process.env.GITHUB_TOKEN && String(process.env.GITHUB_TOKEN).trim().length > 0) {
+    return String(process.env.GITHUB_TOKEN).trim();
+  }
+  // Fallback to .env.local when running locally
   const p = path.join(__dirname, '..', '.env.local');
   if (!fs.existsSync(p)) throw new Error('.env.local não encontrado');
   const content = fs.readFileSync(p, 'utf8');

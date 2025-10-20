@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "check:env": "node scripts/check-env.js",
+    "check:vercel": "node scripts/check-vercel-env.js",
     "osint:test": "node scripts/osint-smoke-tests.mjs"
   },
   "dependencies": {
