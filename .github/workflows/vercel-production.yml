@@ -20,6 +20,7 @@ jobs:
     permissions:
       contents: read
       actions: write
+      checks: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,55 +34,58 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Vercel CLI
-        run: npm i -g vercel
-
-      - name: Check Vercel configuration (production)
-        run: npm run check:vercel
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}
-
-      - name: Sync Actions variables (VERCEL_*)
-        run: node scripts/set-actions-vars.js --vercel-token="${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }}" --project-id="${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}" --org-id="${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull Vercel env (production)
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}
-
-      - name: Build with Vercel CLI
-        id: build_app
+      - name: Build (Next.js local)
+        id: build_local
         run: |
           START=$(date +%s)
-          vercel build --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }}
+          npm run build
           END=$(date +%s)
           MS=$(( (END-START)*1000 ))
           echo "build_ms=$MS" >> $GITHUB_OUTPUT
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}
 
-      - name: Deploy to Vercel (prebuilt)
-        id: vercel-deploy
-        run: |
-          START=$(date +%s)
-          OUT=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }})
-          END=$(date +%s)
-          URL=$(echo "$OUT" | grep -oE 'https?://[a-zA-Z0-9.-]+\.vercel\.app' | tail -n 1)
-          INSPECT=$(echo "$OUT" | grep -oE 'https?://vercel\.com/[^ ]+' | tail -n 1)
-          MS=$(( (END-START)*1000 ))
-          echo "Production URL: $URL"
-          echo "production_url=$URL" >> $GITHUB_OUTPUT
-          echo "inspect_url=$INSPECT" >> $GITHUB_OUTPUT
-          echo "deploy_ms=$MS" >> $GITHUB_OUTPUT
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}
+      - name: Wait for Vercel production (GitHub checks)
+        id: fetch_production
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha;
+            const start = Date.now();
+            const maxAttempts = 30;
+            const delayMs = 10000;
+            let url = '', inspect = '', attempt = 0;
+            function extract(text) {
+              const links = (text && text.match(/https?:\/\/[^\s)]+/g)) || [];
+              const preferred = links.find(u => u.includes('.vercel.app')) || links[links.length - 1] || '';
+              const inspectMatch = links.find(u => u.includes('vercel.com')) || '';
+              return { foundUrl: preferred, foundInspect: inspectMatch };
+            }
+            while (attempt < maxAttempts) {
+              attempt++;
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha,
+                per_page: 100,
+              });
+              const vercelChecks = data.check_runs.filter(cr => {
+                const n = (cr.name || '').toLowerCase();
+                const d = (cr.details_url || '').toLowerCase();
+                return n.includes('vercel') || d.includes('vercel.com');
+              });
+              for (const cr of vercelChecks) {
+                if (cr.status === 'completed' && cr.conclusion === 'success') {
+                  const blob = [cr.details_url || '', (cr.output && cr.output.summary) || '', (cr.output && cr.output.text) || ''].filter(Boolean).join('\n');
+                  const { foundUrl, foundInspect } = extract(blob);
+                  if (foundUrl) { url = foundUrl; inspect = foundInspect || (cr.details_url || ''); break; }
+                }
+              }
+              if (url) break;
+              await new Promise(r => setTimeout(r, delayMs));
+            }
+            const deployMs = Date.now() - start;
+            core.setOutput('production_url', url || '');
+            core.setOutput('inspect_url', inspect || '');
+            core.setOutput('deploy_ms', String(deployMs));
 
       - name: Collect production metrics
         id: collect_metrics
@@ -91,7 +95,7 @@ jobs:
           echo "bundle_size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
           echo "bundle_size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
 
-          URL="${{ steps.vercel-deploy.outputs.production_url }}"
+          URL="${{ steps.fetch_production.outputs.production_url }}"
           ROOT_TIME=$(curl -s -o /dev/null -w "%{time_total}" "$URL/")
           ROOT_MS=$(awk "BEGIN { printf \"%.0f\", $ROOT_TIME*1000 }")
           ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/")
@@ -103,11 +107,11 @@ jobs:
         run: |
           {
             echo "### Production";
-            echo "URL: ${{ steps.vercel-deploy.outputs.production_url }}";
-            echo "Inspect: ${{ steps.vercel-deploy.outputs.inspect_url }}";
+            echo "URL: ${{ steps.fetch_production.outputs.production_url }}";
+            echo "Inspect: ${{ steps.fetch_production.outputs.inspect_url }}";
             echo "";
-            echo "Build: ${{ steps.build_app.outputs.build_ms }} ms";
-            echo "Deploy: ${{ steps.vercel-deploy.outputs.deploy_ms }} ms";
+            echo "Build: ${{ steps.build_local.outputs.build_ms }} ms";
+            echo "Deploy: ${{ steps.fetch_production.outputs.deploy_ms }} ms";
             echo "Bundle: ${{ steps.collect_metrics.outputs.bundle_size_mb }} MB";
             echo "";
             echo "Node: $(node -v)";

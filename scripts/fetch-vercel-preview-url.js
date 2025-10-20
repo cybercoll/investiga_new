@@ -4,6 +4,9 @@ const path = require('path');
 const zlib = require('zlib');
 
 function readToken() {
+  if (process.env.GITHUB_TOKEN && String(process.env.GITHUB_TOKEN).trim()) {
+    return String(process.env.GITHUB_TOKEN).trim();
+  }
   const p = path.join(__dirname, '..', '.env.local');
   if (!fs.existsSync(p)) throw new Error('Arquivo .env.local não encontrado');
   const content = fs.readFileSync(p, 'utf8');
