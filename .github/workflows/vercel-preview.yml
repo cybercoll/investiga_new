@@ -3,6 +3,12 @@ name: Vercel Preview Deploy
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      vercel_token:
+        description: 'Vercel token for one-off run'
+        required: false
+        type: string
 
 jobs:
   deploy-preview:
@@ -34,12 +40,12 @@ jobs:
       - name: Check Vercel configuration (preview)
         run: npm run check:vercel
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}
 
       - name: Pull Vercel env (preview)
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID || 'team_cBXVEFj6YK3OLTTd5JLX8eTw' }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID || 'prj_Q2iJe0AiXgNm26Z0dmwzP174HohF' }}
@@ -48,7 +54,7 @@ jobs:
         id: build_app
         run: |
           START=$(date +%s)
-          vercel build --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }}
+          vercel build --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }}
           END=$(date +%s)
           MS=$(( (END-START)*1000 ))
           echo "build_ms=$MS" >> $GITHUB_OUTPUT
@@ -73,7 +79,7 @@ jobs:
           add_env NEXT_PUBLIC_SUPABASE_URL "${{ secrets.NEXT_PUBLIC_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL }}"
           add_env NEXT_PUBLIC_SUPABASE_ANON_KEY "${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}"
           add_env SUPABASE_SERVICE_ROLE_KEY "${{ secrets.SUPABASE_SERVICE_ROLE_KEY || vars.SUPABASE_SERVICE_ROLE_KEY }}"
-          OUT=$(vercel deploy --prebuilt $ENV_ARGS --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN }})
+          OUT=$(vercel deploy --prebuilt $ENV_ARGS --token=${{ secrets.VERCEL_TOKEN || vars.VERCEL_TOKEN || inputs.vercel_token }})
           END=$(date +%s)
           # Extract deployment URL (.vercel.app) and Vercel dashboard inspect URL
           URL=$(echo "$OUT" | grep -oE 'https?://[a-zA-Z0-9.-]+\.vercel\.app' | tail -n 1)
